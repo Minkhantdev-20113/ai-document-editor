@@ -24,7 +24,7 @@ echo Starting the development server...
 start "AI Document Translator - dev server" cmd /k npm run dev
 
 echo Waiting for the server to be ready...
-timeout /t 6 /nobreak >nul
+ping -n 7 127.0.0.1 >nul
 start "" http://localhost:5173
 
 echo.
