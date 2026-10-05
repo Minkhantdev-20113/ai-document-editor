@@ -1,0 +1,281 @@
+Continue the SAME project.
+
+Phase 3 goal:
+Implement the production-grade BYOK AI provider system and intelligent multi-key failover.
+
+This phase is extremely important.
+
+Historical failure:
+A previous implementation had multiple API keys but they became exhausted very quickly.
+
+Do NOT solve this by simply rotating keys sequentially.
+
+KEY PRINCIPLE:
+
+Multiple API keys do NOT necessarily mean multiplied provider quota.
+
+Provider limits can exist at:
+- API key
+- project
+- account
+- organization
+- model
+- IP
+- RPM
+- TPM
+- RPD
+- TPD
+- other provider-specific levels
+
+The application must detect and respect these limits.
+
+PROVIDER ARCHITECTURE
+
+Create a common provider interface.
+
+Conceptually:
+
+AIProvider
+ ├── GeminiProvider
+ ├── GroqProvider
+ ├── OpenRouterProvider
+ ├── DeepSeekProvider
+ └── OpenAICompatibleProvider
+
+Each provider adapter must expose:
+
+- validateKey()
+- listModels()
+- getCapabilities()
+- estimateTokens()
+- generate()
+- translate()
+- getUsage()
+- getRateLimitState()
+- classifyError()
+
+Do not scatter provider-specific logic across UI components.
+
+KEY POOL
+
+Each provider may contain multiple API keys.
+
+Example:
+
+Gemini
+ ├── Key A
+ ├── Key B
+ ├── Key C
+ └── Key D
+
+Each key has:
+
+- id
+- label
+- maskedKey
+- enabled
+- health
+- cooldownUntil
+- lastUsedAt
+- requestCount
+- tokenEstimate
+- successfulRequests
+- failedRequests
+- rateLimitHits
+- lastError
+- provider
+- model compatibility
+
+KEY SELECTION
+
+Implement:
+
+Health-aware weighted scheduling.
+
+Do NOT use simple round-robin.
+
+Before selecting a key consider:
+
+- enabled
+- valid
+- cooldown
+- recent failures
+- recent 429
+- provider health
+- model support
+- estimated token requirement
+- known RPM
+- known TPM
+- local usage estimate
+
+RATE LIMIT HANDLING
+
+Correctly classify:
+
+- 429
+- quota exceeded
+- insufficient quota
+- authentication error
+- invalid API key
+- invalid model
+- network error
+- timeout
+- server error
+- content policy error
+
+For 429/rate-limit errors:
+
+1. Save error.
+2. Read Retry-After if available.
+3. Read provider rate-limit headers if available.
+4. Set cooldown.
+5. Select another healthy candidate only if doing so is valid.
+6. Otherwise wait.
+7. Exponential backoff with jitter.
+8. Never create a tight retry loop.
+
+IMPORTANT:
+
+If all keys share an upstream account/project quota, do NOT endlessly rotate keys.
+
+Instead show:
+
+"Provider quota exhausted"
+
+and pause the affected job safely.
+
+JOB RESUMPTION
+
+If a key fails during translation:
+
+- never lose completed translation units
+- save the current unit state
+- retry using another valid key/provider
+- resume from the failed unit
+
+TRANSLATION BATCHING
+
+Do NOT send an entire PDF as one huge AI request.
+
+Create controlled batches.
+
+Batch size must depend on:
+
+- model context
+- estimated tokens
+- provider limits
+- document type
+- target language
+- translation quality requirements
+
+For Burmese translation:
+
+Preserve:
+- technical terminology
+- numbers
+- units
+- formulas
+- code
+- citations
+- URLs
+- proper nouns when appropriate
+- Markdown/structure markers
+
+Use structured JSON responses whenever supported.
+
+Do not accept uncontrolled prose when structured output is possible.
+
+MODEL REGISTRY
+
+Create a model registry with:
+
+- provider
+- modelId
+- displayName
+- pricingType
+- freeTier
+- paid
+- contextLength
+- supportsText
+- supportsPDF
+- supportsImage
+- supportsStructuredOutput
+- supportsVision
+- qualityLevel
+- speedLevel
+- enabled
+
+Never assume that every model supports PDF.
+
+FREE/PAID
+
+The UI must clearly distinguish:
+
+FREE
+FREE TIER
+PAID
+
+Do not claim a model is permanently free.
+
+The provider model catalog must be updateable.
+
+USAGE DASHBOARD
+
+Create:
+
+Provider Usage
+Key Usage
+Model Usage
+Requests
+Input tokens
+Output tokens
+Errors
+429s
+Cooldowns
+Estimated usage
+
+Separate:
+
+Provider-reported usage
+from
+Locally estimated usage
+
+If actual provider quota cannot be queried, clearly label it as estimated.
+
+API KEY SECURITY
+
+- Never send raw keys to Google Sheets.
+- Never log raw keys.
+- Never expose keys in URLs.
+- Never place keys in source code.
+- Never place keys in Vite environment variables if the application is intended to distribute the frontend publicly.
+- Build a local key vault abstraction.
+
+IMPORTANT:
+Because this is BYOK, explain in the UI that browser-side API keys are controlled by the user and should only be used with keys the user is comfortable using from a client application.
+
+GEMINI FIRST
+
+Optimize the provider abstraction for Gemini first because Burmese translation is the primary use case.
+
+Then implement the generic adapter architecture for other providers.
+
+At the end:
+
+- test invalid key
+- test 429
+- test timeout
+- test network failure
+- test exhausted key
+- test cooldown
+- test multiple keys
+- test provider fallback
+- test resume after failure
+- test refresh during translation
+- verify no API key appears in logs
+- run type-check
+- run production build
+- update documentation
+- update CHANGELOG.md
+
+Do not continue to Phase 4 until this system is stable.

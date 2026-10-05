@@ -1,0 +1,151 @@
+/* ==========================================================================
+   Design tokens - single source of truth for colors, type, spacing, depth.
+   Flat, minimal, professional. Light and dark themes share one token set.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* Typography */
+  --font-sans: 'Noto Sans Myanmar', 'Myanmar Text', 'Padauk', Inter, system-ui, -apple-system,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-xs: 0.75rem; /* 12px */
+  --text-sm: 0.8125rem; /* 13px */
+  --text-base: 0.875rem; /* 14px - app default */
+  --text-md: 0.9375rem; /* 15px */
+  --text-lg: 1.0625rem; /* 17px */
+  --text-xl: 1.25rem; /* 20px */
+  --text-2xl: 1.5rem; /* 24px */
+  --text-3xl: 1.875rem; /* 30px */
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Spacing (4px base) */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Radii - restrained, not pill-shaped cards */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 999px;
+
+  /* Layout */
+  --sidebar-width: 236px;
+  --sidebar-width-collapsed: 64px;
+  --header-height: 56px;
+  --content-max: 1360px;
+
+  /* Depth - barely-there shadows, borders do the work */
+  --shadow-xs: 0 1px 1px rgba(16, 24, 40, 0.04);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.14);
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --duration-slow: 260ms;
+
+  /* Stacking */
+  --z-sticky: 10;
+  --z-header: 30;
+  --z-sidebar: 40;
+  --z-dropdown: 50;
+  --z-modal: 60;
+  --z-toast: 80;
+
+  /* Semantic colors - light theme */
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f1f3f6;
+  --color-surface-hover: #eceef2;
+  --color-surface-sunken: #fafbfc;
+  --color-border: #e3e6eb;
+  --color-border-strong: #cfd4dc;
+  --color-text: #14161a;
+  --color-text-muted: #5b6472;
+  --color-text-subtle: #858e9c;
+  --color-text-inverse: #ffffff;
+
+  --color-primary: #4f46e5;
+  --color-primary-hover: #443ccd;
+  --color-primary-active: #3b34b5;
+  --color-primary-soft: #eeedfd;
+  --color-primary-soft-text: #3f37c9;
+  --color-primary-contrast: #ffffff;
+
+  --color-success: #157f3d;
+  --color-success-soft: #e7f6ec;
+  --color-warning: #92610a;
+  --color-warning-soft: #fdf3e2;
+  --color-danger: #c02626;
+  --color-danger-hover: #a71f1f;
+  --color-danger-soft: #fdecec;
+  --color-info: #1c64c9;
+  --color-info-soft: #e9f1fd;
+  --color-neutral-soft: #eceef2;
+
+  --focus-ring: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-primary);
+  --overlay: rgba(15, 18, 24, 0.44);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #0e1014;
+  --color-surface: #15181e;
+  --color-surface-alt: #1b1f26;
+  --color-surface-hover: #212630;
+  --color-surface-sunken: #111318;
+  --color-border: #262b34;
+  --color-border-strong: #39404c;
+  --color-text: #e8eaee;
+  --color-text-muted: #9ba4b2;
+  --color-text-subtle: #737d8d;
+  --color-text-inverse: #0e1014;
+
+  --color-primary: #7c86ff;
+  --color-primary-hover: #8f98ff;
+  --color-primary-active: #6b75f0;
+  --color-primary-soft: #1e2140;
+  --color-primary-soft-text: #a9b0ff;
+  --color-primary-contrast: #0e1014;
+
+  --color-success: #4ade80;
+  --color-success-soft: #102a1c;
+  --color-warning: #fbbf24;
+  --color-warning-soft: #2c2410;
+  --color-danger: #f87171;
+  --color-danger-hover: #fa8f8f;
+  --color-danger-soft: #2d1616;
+  --color-info: #7aa9ff;
+  --color-info-soft: #14203a;
+  --color-neutral-soft: #212630;
+
+  --shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.55);
+  --overlay: rgba(3, 5, 8, 0.62);
+}

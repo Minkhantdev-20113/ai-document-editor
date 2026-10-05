@@ -1,0 +1,205 @@
+Continue the SAME NEW AI Document Translator project.
+
+Do not redesign the entire application.
+Do not replace working architecture unnecessarily.
+Do not modify unrelated files.
+
+Phase 2 goal:
+Build a robust PDF/document analysis pipeline that preserves document structure instead of treating a PDF as plain text.
+
+IMPORTANT HISTORICAL FAILURE:
+The previous project produced exported PDFs with incorrect language placement and broken structure.
+
+Therefore:
+DO NOT implement a simple "extract all text -> translate -> put text back" approach.
+
+DOCUMENT PIPELINE
+
+Implement:
+
+File Picker
+→ File Validation
+→ Metadata Extraction
+→ PDF Parsing
+→ Page Analysis
+→ Text Block Extraction
+→ Reading Order Detection
+→ Structure Classification
+→ Translation Units
+→ Local Persistence
+
+SUPPORTED INPUT:
+
+Initially:
+- PDF
+- TXT
+- Markdown
+- DOCX if practical
+
+PDF ANALYSIS MUST CAPTURE:
+
+- page number
+- text content
+- bounding box
+- x/y coordinates
+- width
+- height
+- font size if available
+- font family if available
+- font weight
+- text alignment
+- line grouping
+- paragraph grouping
+- heading candidates
+- list candidates
+- table candidates
+- captions
+- links when available
+- reading order
+- images
+- page dimensions
+- rotation
+- metadata
+
+CREATE A DOCUMENT INTERMEDIATE REPRESENTATION.
+
+Example conceptual structure:
+
+Document
+ └── Page
+      ├── Block
+      │    ├── Paragraph
+      │    ├── Heading
+      │    ├── List
+      │    ├── Table
+      │    ├── Caption
+      │    └── Other
+      ├── Images
+      └── Metadata
+
+Each block must have a stable ID.
+
+TRANSLATION UNIT
+
+Create a stable translation-unit model.
+
+Each translation unit must contain:
+
+- id
+- documentId
+- pageId
+- blockId
+- sourceText
+- sourceLanguage
+- targetLanguage
+- translatedText
+- status
+- retryCount
+- provider
+- model
+- keyId
+- estimatedTokens
+- actualTokens when available
+- error
+- createdAt
+- updatedAt
+
+LANGUAGE DETECTION
+
+Implement source-language detection with confidence.
+
+Do not rely on a single heuristic.
+
+Show:
+
+Source language:
+English
+
+Confidence:
+94%
+
+If confidence is low:
+ask the user to confirm.
+
+DOCUMENT PREVIEW
+
+Build a page/document analysis preview.
+
+The user should be able to see:
+
+- page thumbnails
+- page count
+- extracted text
+- detected blocks
+- document structure
+- detected language
+- warnings
+
+Allow the user to inspect problematic pages.
+
+OCR ARCHITECTURE
+
+Design an OCR abstraction for scanned PDFs.
+
+Do not make OCR mandatory for normal text PDFs.
+
+Detect whether a page appears to contain selectable text.
+
+If not:
+mark it as requiring OCR.
+
+Do not fake OCR results.
+
+ERROR HANDLING
+
+A single malformed page must NOT crash the whole project.
+
+If one page fails:
+
+- mark the page as failed
+- save the error
+- continue processing other pages when safe
+- allow retry
+
+PERSISTENCE
+
+Every analysis stage must save incremental progress to IndexedDB.
+
+If the browser refreshes:
+
+Resume from the last completed page/block.
+
+PERFORMANCE
+
+Use Web Workers for heavy parsing/analysis.
+
+Do not freeze the UI.
+
+Show:
+
+Analyzing document
+Page 14 / 94
+Blocks detected: 381
+Current task: Extracting layout
+
+Use real progress where possible.
+
+At the end:
+
+1. Run type-check.
+2. Run production build.
+3. Test PDFs with:
+   - normal text
+   - multiple paragraphs
+   - headings
+   - lists
+   - tables
+   - mixed formatting
+   - Burmese text
+   - scanned/image pages
+4. Fix all discovered issues.
+5. Update README.md.
+6. Update ARCHITECTURE.md.
+7. Update CHANGELOG.md.
+8. Do not delete existing useful code.
+9. Do not proceed to Phase 3 until Phase 2 is stable.

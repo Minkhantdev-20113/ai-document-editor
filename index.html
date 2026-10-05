@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="my" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="AI Document Translator - offline-first document translation workspace with natural Burmese output."
+    />
+    <title>AI Document Translator</title>
+    <script>
+      // Resolve the persisted theme before first paint to avoid a wrong-theme flash.
+      (function () {
+        try {
+          var stored = localStorage.getItem('adt.theme');
+          var mode = stored === 'light' || stored === 'dark' ? stored : 'system';
+          var resolved =
+            mode === 'system'
+              ? window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+              : mode;
+          document.documentElement.dataset.theme = resolved;
+          document.documentElement.style.colorScheme = resolved;
+        } catch (e) {
+          /* storage unavailable: default theme stays */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

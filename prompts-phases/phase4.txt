@@ -1,0 +1,208 @@
+Continue the SAME project.
+
+Phase 4 goal:
+Implement the actual document translation workflow and a professional real-time editing workspace.
+
+PRIMARY GOAL:
+
+High-quality, natural Burmese translation while preserving document structure.
+
+TRANSLATION WORKFLOW
+
+Implement:
+
+Project
+→ Analyze
+→ Confirm source language
+→ Select target language
+→ Select provider/model
+→ Select translation strategy
+→ Start translation
+→ Batch processing
+→ Incremental save
+→ Validation
+→ Editor
+
+TARGET LANGUAGES
+
+Support a configurable language list.
+
+Burmese must be a first-class target language.
+
+BURMESE TRANSLATION REQUIREMENTS
+
+The translation engine must prioritize:
+
+- natural Burmese
+- correct grammar
+- correct sentence flow
+- context-aware terminology
+- technical accuracy
+- consistent terminology
+- appropriate formal/informal style
+- preservation of numbers and units
+- preservation of technical names when necessary
+- preservation of formulas
+- preservation of citations
+- preservation of URLs
+- preservation of code
+- preservation of tables
+- preservation of document hierarchy
+
+Do NOT blindly translate:
+- code
+- URLs
+- email addresses
+- mathematical formulas
+- identifiers
+- file paths
+- API names
+- technical symbols
+
+TERMINOLOGY SYSTEM
+
+Create a glossary.
+
+User can define:
+
+English:
+deployment
+
+Preferred Burmese:
+deployment
+
+Or:
+
+English:
+database
+
+Preferred Burmese:
+ဒေတာဘေ့စ်
+
+Glossary entries can have:
+- source term
+- preferred translation
+- forbidden translation
+- notes
+
+The translation prompt must incorporate glossary rules.
+
+TRANSLATION MEMORY
+
+Store previous translation units.
+
+When similar text appears again:
+show previous translation as a suggestion.
+
+Do not automatically replace text unless confidence is high and the user has enabled the option.
+
+REAL-TIME EDITOR
+
+Build a professional editor.
+
+Layout:
+
+Left:
+Page/document navigation
+
+Center:
+Editable translation
+
+Right:
+Context / source text / terminology / AI suggestions
+
+Support:
+
+- source/translation toggle
+- side-by-side view
+- inline editing
+- search
+- replace
+- undo/redo
+- save status
+- autosave
+- page navigation
+- translation-unit status
+- unresolved warnings
+
+SHOW:
+
+Original
+Translation
+AI suggestion
+Manual edit
+
+Every manual edit must override the AI translation without being lost during reprocessing.
+
+VALIDATION
+
+After translation, run validation checks for:
+
+- missing text
+- untranslated segments
+- numbers changed
+- units changed
+- URLs changed
+- code changed
+- duplicated text
+- unexpected empty text
+- structure mismatch
+- glossary violations
+
+Display warnings instead of silently changing content.
+
+PROGRESS
+
+Show real progress:
+
+Translation
+Page 38 / 94
+Unit 382 / 921
+Current provider: Gemini
+Current model: ...
+Current key: masked label
+Status: translating
+
+Never expose the full API key.
+
+PAUSE/RESUME
+
+Implement true pause/resume.
+
+Pause must:
+- finish current safe operation if necessary
+- persist state
+- stop creating new requests
+
+Resume must continue from saved state.
+
+NETWORK INTERRUPTION
+
+If internet/VPN temporarily disappears:
+
+- keep the application usable
+- preserve local state
+- pause AI requests
+- retry when network becomes available
+- do not lose completed work
+- do not reload the whole application
+
+Do not make Google Apps Script or any AI provider a dependency for opening an existing project.
+
+At the end:
+
+- test Burmese translation
+- test English → Burmese
+- test long paragraphs
+- test technical documents
+- test mixed-language documents
+- test manual editing
+- test pause/resume
+- test refresh recovery
+- test network interruption
+- test provider failure
+- verify translation units remain consistent
+- run build/type-check
+- update README.md
+- update ARCHITECTURE.md
+- update CHANGELOG.md

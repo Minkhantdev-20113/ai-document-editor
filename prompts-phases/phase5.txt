@@ -1,0 +1,334 @@
+Continue the SAME project.
+
+Phase 5 goal:
+Implement production-grade document export without freezing the browser and without destroying the original document structure.
+
+This is the most important final phase.
+
+HISTORICAL FAILURE:
+
+The previous project froze while exporting PDFs and produced incorrect language/layout/structure.
+
+The new implementation MUST specifically prevent these failures.
+
+EXPORT ARCHITECTURE
+
+Never perform large PDF rendering/export work on the main UI thread.
+
+Use Web Workers wherever possible.
+
+Main Thread:
+- UI
+- editor
+- progress
+- controls
+
+Worker:
+- layout calculations
+- text wrapping
+- page rendering
+- PDF generation
+- heavy transformations
+
+EXPORT PIPELINE
+
+Translated Document Model
+→ Layout Reconstruction
+→ Page Rendering
+→ Validation
+→ PDF Generation
+→ Blob/File
+→ Download
+
+PRESERVE:
+
+- page size
+- page orientation
+- margins
+- page order
+- headings
+- paragraphs
+- lists
+- tables
+- images where technically possible
+- links where technically possible
+- alignment
+- spacing
+- hierarchy
+- numbers
+- formulas
+- technical content
+
+DO NOT simply replace extracted text inside the original PDF and assume the layout will remain correct.
+
+BURMESE FONT SUPPORT
+
+The exporter must use a Unicode font that properly supports Burmese.
+
+Do not assume Times New Roman alone provides Burmese glyph coverage.
+
+Implement a font configuration system.
+
+Example:
+
+Default Latin font:
+Times New Roman or equivalent
+
+Burmese fallback:
+Configurable Unicode Burmese-compatible font
+
+The user must be able to choose available export fonts when possible.
+
+TEXT OVERFLOW
+
+Translated text is often longer/shorter than the source.
+
+Implement adaptive text layout.
+
+If translated text exceeds the original text box:
+
+1. Reflow within available bounds.
+2. Adjust line wrapping.
+3. Expand block where safe.
+4. Rebalance surrounding content.
+5. If necessary, create a continuation region/page.
+6. Never silently clip text.
+
+TABLES
+
+Preserve table structure.
+
+Do not flatten tables into paragraphs.
+
+If exact reconstruction is impossible:
+show a warning before export.
+
+EXPORT FORMATS
+
+Implement:
+
+Primary:
+- PDF
+
+Secondary where practical:
+- DOCX
+- TXT
+- Markdown
+- JSON translation project
+
+The JSON project export must contain enough information to restore/reopen the project later.
+
+EXPORT PROGRESS
+
+Show:
+
+Preparing export
+Analyzing layout
+Rendering page 1 / 94
+Rendering page 2 / 94
+...
+Generating PDF
+Validating output
+Preparing download
+
+Never freeze the UI.
+
+Provide:
+
+- Cancel
+- Pause where technically safe
+- Continue
+- Retry failed page
+- Open export folder/download flow where browser permits
+
+MEMORY MANAGEMENT
+
+Large PDFs must not be loaded into multiple full-memory copies unnecessarily.
+
+Process pages incrementally.
+
+Release temporary resources after each page/batch.
+
+Use object URL cleanup.
+
+Do not create giant base64 strings unnecessarily.
+
+LARGE FILE TESTING
+
+Test with:
+- small PDF
+- medium PDF
+- large PDF
+- many-page PDF
+- image-heavy PDF
+- text-heavy PDF
+- mixed language PDF
+- Burmese output
+- long translated paragraphs
+- tables
+- headings
+- lists
+
+VALIDATION BEFORE DOWNLOAD
+
+Before final download:
+
+Check:
+
+- expected page count
+- non-empty pages
+- text presence
+- no missing translation units
+- no clipped text where detectable
+- no obvious untranslated blocks
+- no corrupted PDF structure
+- correct target language
+- correct document title/metadata
+
+If validation fails:
+DO NOT silently download a broken file.
+
+Show a clear warning and allow the user to inspect the affected pages.
+
+CRASH RECOVERY
+
+If export fails:
+
+- save export job state
+- save completed pages
+- show error
+- allow retry from failed page
+- do not restart from page 1 unnecessarily
+
+GOOGLE APPS SCRIPT SYNC
+
+Implement cloud sync only for:
+
+- project metadata
+- settings
+- translation project state
+- usage snapshots
+- logs/diagnostics where appropriate
+
+Do not upload raw API keys to Google Sheets.
+
+Do not make Google Apps Script mandatory for local project opening/editing/export.
+
+OFFLINE-FIRST REQUIREMENT
+
+A previously opened project must remain editable even when:
+
+- Google Apps Script is unavailable
+- AI provider is unavailable
+- VPN is unavailable
+- internet temporarily disappears
+
+AI operations naturally require network access, but local editing/export should remain functional when possible.
+
+FINAL UI
+
+Complete:
+
+Dashboard
+Projects
+Import
+Analysis
+Translation Workspace
+Editor
+Provider Manager
+API Key Manager
+Usage Dashboard
+Export Center
+Settings
+Help
+About
+
+Include:
+
+- Light mode
+- Dark mode
+- System mode
+- English/Burmese UI
+- keyboard shortcuts
+- accessibility basics
+- responsive desktop-first layout
+- clean empty states
+- proper error states
+- loading states
+- toast notifications
+
+FINAL QUALITY AUDIT
+
+Perform a full production audit.
+
+Check:
+
+1. TypeScript
+2. Build
+3. Runtime errors
+4. Console errors
+5. Memory leaks
+6. Worker cleanup
+7. IndexedDB persistence
+8. Refresh recovery
+9. Network recovery
+10. API failure recovery
+11. Key rotation
+12. Rate-limit handling
+13. Translation resume
+14. Manual editor persistence
+15. PDF export
+16. PDF structure
+17. Burmese font rendering
+18. large-file performance
+19. responsive UI
+20. accessibility
+
+IMPORTANT:
+
+Do not claim "100% free" for third-party API usage unless the provider officially guarantees the relevant free tier.
+
+The application itself must have a no-paid-service dependency architecture, while clearly labeling AI models/providers as FREE, FREE TIER, or PAID based on current provider information.
+
+Create:
+
+README.md
+ARCHITECTURE.md
+API_PROVIDERS.md
+PDF_PIPELINE.md
+TRANSLATION_PIPELINE.md
+EXPORT_PIPELINE.md
+OFFLINE_FIRST.md
+TROUBLESHOOTING.md
+CHANGELOG.md
+
+The documentation must explain:
+
+- setup
+- Google Apps Script setup
+- Google Sheet schema
+- BYOK setup
+- provider setup
+- API key management
+- free vs paid models
+- quota/rate limits
+- VPN/network behavior
+- offline mode
+- translation workflow
+- export workflow
+- troubleshooting
+- known limitations
+
+Finally:
+
+Run a clean production build.
+
+Fix all errors.
+
+Do not leave TODO placeholders for core functionality.
+
+Do not delete useful files.
+
+Do not rewrite stable modules unnecessarily.
+
+Only finish when the application is a coherent, production-oriented working document translation platform.

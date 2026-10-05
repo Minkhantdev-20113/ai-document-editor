@@ -1,0 +1,220 @@
+You are building a NEW production-grade web application from scratch.
+
+Do NOT modify or reuse any previous PDF translator project.
+
+Project name:
+AI Document Translator
+
+Goal:
+Build a desktop-first responsive AI document translation web application focused especially on high-quality natural Burmese translation.
+
+IMPORTANT:
+This is a completely NEW project.
+
+The previous version had serious problems:
+1. Multiple API keys became exhausted too quickly.
+2. Exported PDFs lost the original language/layout/structure.
+3. The browser UI froze during PDF export.
+
+These are historical failure cases only. Do not inspect or modify any previous project. Design the new architecture specifically to prevent these classes of problems.
+
+TECH STACK
+
+Frontend:
+- React
+- TypeScript
+- Vite
+- Modern CSS
+- Tiptap for rich text editing
+- PDF.js for PDF inspection/rendering
+- pdf-lib or an appropriate PDF library for export
+- IndexedDB for offline-first persistence
+- Web Workers for CPU-heavy document processing
+- Strict TypeScript
+- Modular architecture
+
+Backend:
+- Google Apps Script
+- Google Sheets as the lightweight cloud database/synchronization backend
+
+AI:
+- BYOK architecture
+- Gemini as the primary provider
+- Provider adapters for Groq, OpenRouter, DeepSeek, and generic OpenAI-compatible APIs
+- Do not hard-code provider-specific logic throughout the application.
+
+IMPORTANT ARCHITECTURE RULES
+
+1. Google Apps Script must NOT be used as the heavy PDF-processing engine.
+2. Google Sheets must NOT store raw API keys.
+3. PDF processing must be asynchronous.
+4. Heavy processing must not block the main UI thread.
+5. The application must remain usable while AI providers are unavailable.
+6. Project state must be persisted locally first.
+7. Cloud synchronization must be secondary.
+8. The application must be resumable after browser refresh or temporary network failure.
+9. Never assume that multiple API keys automatically multiply a provider's quota.
+10. Provider rate limits must be treated as provider/account/model dependent.
+
+DESIGN SYSTEM
+
+Create a professional production-level SaaS UI.
+
+Style:
+- Minimal
+- Flat
+- Clean
+- Modern
+- Professional
+- Desktop-first
+- Responsive
+- No unnecessary decorative elements
+- No excessive rounded cards
+- No excessive gradients
+- No visual clutter
+
+Themes:
+- Light
+- Dark
+- System
+
+Primary language:
+- Burmese
+
+Secondary language:
+- English
+
+The UI must support natural Burmese labels, not machine-translated awkward Burmese.
+
+MAIN APPLICATION STRUCTURE
+
+Create the foundation for:
+
+- App Shell
+- Sidebar
+- Top Header
+- Dashboard
+- Projects
+- Translation Workspace
+- Editor
+- Export Center
+- AI Providers
+- API Keys
+- Usage
+- Settings
+- Help
+
+Create reusable components.
+
+OFFLINE-FIRST DATA MODEL
+
+Create IndexedDB stores for:
+
+- projects
+- documents
+- documentPages
+- translationUnits
+- editorDocuments
+- settings
+- providerConfigs
+- apiKeyMetadata
+- jobQueue
+- usageSnapshots
+- syncQueue
+- errorLogs
+
+Create proper TypeScript interfaces/types for all entities.
+
+PROJECT MODEL
+
+A project should contain:
+
+- id
+- name
+- source file metadata
+- source language
+- target language
+- status
+- progress
+- createdAt
+- updatedAt
+- lastProcessedUnit
+- error state
+- export state
+
+JOB STATES
+
+Implement the foundation for:
+
+- queued
+- analyzing
+- translating
+- paused
+- retrying
+- exporting
+- completed
+- failed
+- cancelled
+
+UI must show these states clearly.
+
+API KEY SECURITY
+
+Never log raw API keys.
+
+Never send raw API keys to Google Sheets.
+
+Never include API keys in error messages.
+
+Design a local encrypted/obfuscated storage abstraction so that the key-management implementation can be improved later without changing the rest of the application.
+
+DO NOT IMPLEMENT FULL AI TRANSLATION YET.
+
+For this phase:
+- Build architecture
+- Build UI
+- Build IndexedDB
+- Build routing
+- Build project management
+- Build job-state system
+- Build worker infrastructure
+- Build provider adapter interfaces
+- Build settings
+- Build error handling
+- Build loading/progress components
+
+Do NOT fake production functionality with hard-coded mock data.
+
+Use realistic empty states and controlled development fixtures only where necessary.
+
+QUALITY REQUIREMENTS
+
+- No TypeScript errors
+- No broken imports
+- No duplicated components
+- No giant monolithic component
+- No unnecessary dependencies
+- Clear folder structure
+- Error boundaries
+- Centralized logging
+- Centralized configuration
+- Reusable hooks
+- Reusable services
+- Proper cleanup
+
+At the end:
+
+1. Run/build/type-check the project.
+2. Fix all errors.
+3. Verify routing.
+4. Verify IndexedDB persistence.
+5. Verify refresh/reload recovery.
+6. Verify light/dark/system themes.
+7. Verify responsive behavior.
+8. Create/update README.md with setup instructions.
+9. Create ARCHITECTURE.md explaining the architecture.
+10. Create CHANGELOG.md documenting Phase 1.
+11. Do not delete useful files.
+12. Do not modify unrelated files.
+
+Only after everything is stable should you finish Phase 1.

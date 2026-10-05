@@ -1,0 +1,25 @@
+# Dependencies and builds
+node_modules
+dist
+dev-dist
+coverage
+.vite
+
+# Local environment / secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editor and OS
+.vscode
+.idea
+*.local
+.DS_Store
+Thumbs.db
+
+# Logs and local scratch files
+*.log
+npm-debug.log*
+.stability-sentinel
