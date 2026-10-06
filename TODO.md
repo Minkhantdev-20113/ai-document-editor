@@ -15,9 +15,10 @@ limitations are cross-referenced to [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 | Phase 5 | export: worker-rendered PDF with HarfBuzz Burmese fonts, checkpoints/resume, DOCX/HTML/TXT/MD/JSON, Export Center | **done** (v0.5.0) |
 | 0.6 | on-device OCR: image-only pages read locally (Tesseract, `eng`/`mya`), honest `needs_ocr` fallback | **done** (v0.6.0) |
 | 0.7 | free-tier model catalog: every model each provider serves free-of-charge (Gemini ×6, Groq ×3, OpenRouter `:free` ×6, Mistral on a compatible endpoint) with published rate limits | **done** (v0.7.0) |
+| 0.8 | throughput and diagnosability: canary-then-parallel batches (new `Parallel batches` setting), per-model `response_format`, batch halving on a rejected reply, no backoff on contract failures, model/finish_reason/reply snippet in every failure message | **done** (v0.8.0) |
 
 Last verification: `tsc --noEmit` 0 errors, `eslint .` 0 errors,
-`vitest run` 50 files / 420 tests passed, `vite build` succeeded.
+`vitest run` 50 files / 426 tests passed, `vite build` succeeded.
 
 ## Next
 

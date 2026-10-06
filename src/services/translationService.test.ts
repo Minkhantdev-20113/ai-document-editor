@@ -931,4 +931,77 @@ describe('translation engine (Phase 3)', () => {
     expect(batchSizes).toContain(1);
     expect((await unitsOf()).find((unit) => unit.id === 'u_2')?.status).toBe('translated');
   });
+
+  it('halves a rejected batch instead of failing its units - and never backs off', async () => {
+    await translationUnitsRepo.putMany([makeUnit(1), makeUnit(2), makeUnit(3)]);
+    await enableProvider('gemini', 'gemini-3.8-flash');
+    await seedKey('k_gemini', 'gemini');
+
+    const batchSizes: number[] = [];
+    const { service, waits } = makeService({
+      gemini: async (call) => {
+        batchSizes.push(call.units.length);
+        // A chatty model: it only copes with the JSON contract on short input.
+        if (call.units.length > 1) {
+          throw new AppError('Translation response was not valid JSON [finish_reason=stop]', {
+            code: 'provider_rejected',
+            retryable: true,
+          });
+        }
+        return successResult(call);
+      },
+    });
+
+    const outcome = await service.translateDocument({ documentId: 'doc_1' });
+
+    expect(outcome.status).toBe('completed');
+    expect(outcome.translated).toBe(3);
+    // 3 -> (1 + 2) -> 1 + 1 + 1: every surviving request carried one unit.
+    expect(batchSizes.filter((size) => size === 1)).toHaveLength(3);
+    expect(batchSizes).toContain(3);
+    expect(batchSizes.every((size) => size <= 3)).toBe(true);
+    // A contract failure is not transient: no 5s/10s/20s/40s ladder.
+    expect(waits).toHaveLength(0);
+    expect((await unitsOf()).every((unit) => unit.status === 'translated')).toBe(true);
+  });
+
+  it('runs the batches after the canary in parallel', async () => {
+    // 70 units plan as three batches (32 + 32 + 6): one canary, two in flight.
+    await translationUnitsRepo.putMany(Array.from({ length: 70 }, (_, index) => makeUnit(index + 1)));
+    await enableProvider('gemini', 'gemini-3.8-flash');
+    await seedKey('k_gemini', 'gemini');
+
+    let calls = 0;
+    let inFlight = 0;
+    let maxInFlight = 0;
+    let release: (() => void) | null = null;
+    const overlap = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // Sequential execution would still finish, just slowly - and fail below.
+    const failSafe = new Promise<void>((resolve) => {
+      setTimeout(resolve, 1_000);
+    });
+
+    const { service } = makeService({
+      gemini: async (call) => {
+        calls += 1;
+        if (calls === 1) return successResult(call); // canary runs alone
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        if (inFlight >= 2) release?.();
+        await Promise.race([overlap, failSafe]);
+        inFlight -= 1;
+        return successResult(call);
+      },
+    });
+
+    const outcome = await service.translateDocument({ documentId: 'doc_1' });
+
+    expect(outcome.status).toBe('completed');
+    expect(outcome.translated).toBe(70);
+    expect(calls).toBe(3);
+    // Two batches were in flight at the same time.
+    expect(maxInFlight).toBeGreaterThanOrEqual(2);
+  });
 });

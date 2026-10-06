@@ -16,6 +16,7 @@ import type {
   SelectionRejection,
 } from '../domain/provider/keySelection';
 import { classifyProviderError, errorClassForCode, type ClassifiedProviderError, type ErrorClass } from './classify';
+import { modelSupportsJsonMode } from './modelRegistry';
 import { getAdapter } from './registry';
 import { providerFetchJson } from './transport';
 import { verifyKey, type KeyVerification } from './verify';
@@ -370,11 +371,14 @@ export function createAIProvider(providerId: ProviderId, options: AIProviderOpti
         documentType: call.documentType,
         ...(call.glossary && call.glossary.length > 0 ? { glossary: call.glossary } : {}),
       });
-      // Structured output whenever the provider supports it; the prompt itself
+      // Structured output whenever *this model* supports it; the prompt itself
       // always requests JSON, so unsupported endpoints degrade gracefully.
+      // Provider-level capability is no longer the right gate: OpenRouter as a
+      // whole does not advertise JSON mode, but individual routes do - and the
+      // ones that do not must keep `response_format` off.
       const wantsStructured = translateOptions.responseFormat
         ? true
-        : descriptor.capabilities.jsonMode;
+        : modelSupportsJsonMode(providerId, call.model);
 
       const result = await provider.generate(
         {
@@ -411,7 +415,7 @@ export function createAIProvider(providerId: ProviderId, options: AIProviderOpti
         // The HTTP call succeeded but the body violated the JSON contract.
         // Record it as a non-punitive failure (counters only, no cooldown) so a
         // chatty model response never wrongly cools a healthy key.
-        const appError = toAppError(error);
+        const appError = describeContractFailure(toAppError(error), result);
         await options.pool.recordFailure(result.keyId, {
           error: appError,
           errorClass: 'rejected',
@@ -454,4 +458,26 @@ function describePayload(payload: unknown): { message?: string; providerStatus?:
   if (typeof error === 'string') return { message: error };
   if (typeof record['message'] === 'string') return { message: record['message'] as string };
   return {};
+}
+
+/**
+ * Attaches *what the model actually answered* to a JSON-contract failure.
+ *
+ * `Translation response was not valid JSON` alone is undiagnosable: it hides
+ * the model, the stop reason and the first line of the reply, which is exactly
+ * what separates a refusal from a truncated answer from a prose summary. The
+ * snippet is whitespace-collapsed and capped so an HTML error page can never
+ * flood a toast or a job record.
+ */
+function describeContractFailure(error: AppError, result: GenerateResult): AppError {
+  if (error.code !== 'provider_rejected') return error;
+  const snippet = result.text.replace(/\s+/g, ' ').trim().slice(0, 240);
+  const stop = result.finishReason ?? 'unknown';
+  const reply = snippet ? `reply="${snippet}"` : 'reply=(empty)';
+  return new AppError(`${error.message} [model=${result.model}; finish_reason=${stop}; ${reply}]`, {
+    code: error.code,
+    retryable: error.retryable,
+    details: { ...(error.details ?? {}), finishReason: stop, responseSnippet: snippet },
+    cause: error,
+  });
 }

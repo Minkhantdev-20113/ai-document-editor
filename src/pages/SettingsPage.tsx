@@ -248,6 +248,20 @@ export function SettingsPage() {
                 }
               />
               <SettingRow
+                label={t('settings.batchConcurrency')}
+                hint={t('settings.batchConcurrencyHint')}
+                control={
+                  <Input
+                    type="number"
+                    min={1}
+                    max={6}
+                    value={settings.batchConcurrency}
+                    onChange={(event) => set('batchConcurrency', clampNumber(event.target.value, 1, 6))}
+                    aria-label={t('settings.batchConcurrency')}
+                  />
+                }
+              />
+              <SettingRow
                 label={t('settings.jobMaxAttempts')}
                 control={
                   <Input

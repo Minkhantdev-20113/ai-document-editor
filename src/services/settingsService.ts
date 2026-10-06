@@ -19,6 +19,12 @@ export interface AppSettings {
   language: UiLanguage;
   sidebarCollapsed: boolean;
   queueConcurrency: number;
+  /**
+   * Batches a single translation may run in parallel (canary-first: batch 1
+   * alone, then this many workers pull the rest). Raise it for fast providers,
+   * lower it to 1 when a key sits close to its RPM limit.
+   */
+  batchConcurrency: number;
   jobMaxAttempts: number;
   vaultAutoLockMs: number;
   defaultSourceLanguage: string;
@@ -46,6 +52,7 @@ export const DEFAULT_SETTINGS: Readonly<AppSettings> = {
   language: 'my',
   sidebarCollapsed: false,
   queueConcurrency: 2,
+  batchConcurrency: 3,
   jobMaxAttempts: 5,
   vaultAutoLockMs: 15 * 60 * 1000,
   defaultSourceLanguage: 'en',

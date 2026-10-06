@@ -700,6 +700,9 @@ export const en = {
     behavior: 'Behavior',
     queueConcurrency: 'Parallel jobs',
     queueConcurrencyHint: 'How many jobs may run at once. Lower values reduce provider pressure.',
+    batchConcurrency: 'Parallel batches',
+    batchConcurrencyHint:
+      'Batches one translation sends at once (the first always runs alone). 1 is gentlest on rate limits; higher finishes sooner.',
     jobMaxAttempts: 'Maximum retries',
     autoLock: 'Auto-lock vault after',
     autoLockHint: 'Idle time before encrypted keys are locked again.',

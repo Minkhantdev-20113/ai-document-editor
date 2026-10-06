@@ -5,6 +5,7 @@ import { PROVIDER_IDS } from './types';
 import {
   allModelSpecs,
   modelSpecs,
+  modelSupportsJsonMode,
   requireModelSpec,
   serializeOverlay,
   validateOverlay,
@@ -126,6 +127,59 @@ describe('model registry facts', () => {
       expect(recommended[0]?.modelId).toBe(
         getProviderDescriptor(providerId).models.find((model) => model.recommended)?.id,
       );
+    }
+  });
+});
+
+describe('per-model JSON mode (response_format gate)', () => {
+  it('follows the provider-wide flag where no model-specific fact exists', () => {
+    // Gemini and Groq advertise JSON mode across their catalogs.
+    expect(modelSupportsJsonMode('gemini', 'gemini-3.8-flash')).toBe(true);
+    expect(modelSupportsJsonMode('groq', 'openai/gpt-oss-120b')).toBe(true);
+    // OpenRouter as a whole does NOT - so nothing may be assumed for it.
+    expect(getProviderDescriptor('openrouter').capabilities.jsonMode).toBe(false);
+  });
+
+  it('enables JSON mode per model on OpenRouter, only where the route declares it', () => {
+    const verified = [
+      'openai/gpt-4o-mini',
+      'anthropic/claude-sonnet-5.5',
+      'google/gemini-3.5-flash',
+      'google/gemma-4-31b-it:free',
+      'nvidia/nemotron-3-super-120b-a12b:free',
+    ];
+    for (const model of verified) {
+      expect(modelSupportsJsonMode('openrouter', model), model).toBe(true);
+    }
+
+    // Routes that do not accept `response_format` must never receive it: an
+    // unsupported parameter can fail the whole request.
+    const rejected = [
+      'thinkingmachines/inkling:free',
+      'thinkingmachines/inkling-small:free',
+      'nvidia/nemotron-3.5-lightning:free',
+      'nvidia/nemotron-3-ultra-550b-a55b:free',
+    ];
+    for (const model of rejected) {
+      expect(modelSupportsJsonMode('openrouter', model), model).toBe(false);
+    }
+  });
+
+  it('falls back to the provider flag for ids it does not know', () => {
+    // Never assume for a new route or a self-hosted model id.
+    expect(modelSupportsJsonMode('openrouter', 'some/new-route:free')).toBe(false);
+    expect(modelSupportsJsonMode('gemini', 'gemini-experimental')).toBe(true);
+    expect(modelSupportsJsonMode('openai_compatible', 'user-typed-model')).toBe(false);
+  });
+
+  it('keeps every model of a jsonMode-off provider off until verified', () => {
+    const off = listProviderDescriptors().filter((descriptor) => !descriptor.capabilities.jsonMode);
+    expect(off.length).toBeGreaterThan(0);
+    for (const descriptor of off) {
+      for (const spec of modelSpecs(descriptor.id)) {
+        if (descriptor.id === 'openrouter') continue; // checked above, per model
+        expect(modelSupportsJsonMode(descriptor.id, spec.modelId), `${descriptor.id}/${spec.modelId}`).toBe(false);
+      }
     }
   });
 });

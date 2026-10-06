@@ -7,7 +7,7 @@ Burmese output. You bring your own AI provider keys (BYOK); they are encrypted
 locally and never leave the browser except as requests to the provider you
 chose.
 
-> **Status: Phase 5 (v0.7.0 — free-tier model catalog).** The application shell, routing, local
+> **Status: Phase 5 (v0.8.0 — parallel batches).** The application shell, routing, local
 > database, project management, job-state machine, provider adapter layer,
 > key vault, settings, error handling, document analysis, the production BYOK
 > provider system and the full translation workflow are complete — and
@@ -17,7 +17,10 @@ chose.
 > gated by pre-download validation. v0.6.0 adds on-device OCR so image-only
 > pages are read rather than left empty. v0.7.0 lists every model each
 > provider currently serves free-of-charge, with the rate limits those
-> providers publish (checked 2026-10-06). Nothing here is faked with mock data.
+> providers publish (checked 2026-10-06). v0.8.0 sends batches in parallel
+> behind a canary request, retries a rejected batch on a smaller payload, and
+> puts the model, stop reason and reply snippet into every failure message.
+> Nothing here is faked with mock data.
 
 ## Requirements
 

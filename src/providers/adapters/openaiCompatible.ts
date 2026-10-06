@@ -1,4 +1,5 @@
 import { classifyProviderError } from '../classify';
+import { modelSupportsJsonMode } from '../modelRegistry';
 import type { CompletionRequest, CompletionResult, ProviderAdapter, ProviderDescriptor } from '../types';
 
 interface OpenAiMessage {
@@ -48,14 +49,16 @@ export function createOpenAiCompatibleAdapter(
       return headers;
     },
     buildRequestBody(request: CompletionRequest): OpenAiBody {
-      const wantsJson =
-        request.responseFormat === 'json' && descriptor.capabilities.jsonMode;
+      // Per-model, not per-provider: OpenRouter as a whole does not advertise
+      // JSON mode, yet the models it routes to individually accept
+      // `response_format` (and the ones that do not keep it off).
+      const wantsJson = request.responseFormat === 'json' && modelSupportsJsonMode(descriptor.id, request.model);
       return {
         model: request.model,
         messages: request.messages.map((message) => ({ role: message.role, content: message.content })),
         ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
         ...(request.maxOutputTokens !== undefined ? { max_tokens: request.maxOutputTokens } : {}),
-        // Only sent when the provider advertises JSON mode - an endpoint that
+        // Only sent when the model advertises JSON mode - an endpoint that
         // does not understand response_format would reject the whole request.
         ...(wantsJson ? { response_format: { type: 'json_object' as const } } : {}),
       };

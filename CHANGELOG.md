@@ -3,6 +3,55 @@
 All notable changes to the AI Document Translator are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.0] — Parallel batches, honest failure messages (2026-10-06)
+
+Translation runs no longer queue every request behind the previous one, no
+longer burn minutes on a reply that will never turn into JSON, and no longer
+hide what the model actually said when the contract breaks.
+
+### Added — parallel batches
+
+- **Parallel batches** setting (Settings → Behavior, default 3, range 1–6).
+  Batch 1 still runs alone as a canary - it proves keys, model and endpoint
+  before anything fans out - so a configuration error still costs exactly one
+  request; the remaining batches are then pulled off a work queue by up to
+  `batchConcurrency` workers. Ordering, persistence and progress keep their
+  previous semantics, and an abort/pause stops the fan-out immediately.
+- The run counters now read-then-add instead of `x += await …`: a compound
+  assignment takes its left operand *before* the `await`, which under
+  concurrency silently drops another batch's units.
+
+### Added — contract-failure handling
+
+- **JSON mode is decided per model, not per provider.** The request builder
+  used to gate `response_format` on the whole provider, so OpenRouter (which
+  does not advertise JSON mode) never received it - not even from the routes
+  that accept it. Verified against OpenRouter's live `/api/v1/models` payload
+  on 2026-10-06: `openai/gpt-4o-mini`, `anthropic/claude-sonnet-5.5`,
+  `google/gemini-3.5-flash`, `google/gemma-4-31b-it:free` and
+  `nvidia/nemotron-3-super-120b-a12b:free` list `response_format` and now get
+  it; `thinkingmachines/inkling:free`,
+  `thinkingmachines/inkling-small:free`, `nvidia/nemotron-3.5-lightning:free`
+  and `nvidia/nemotron-3-ultra-550b-a55b:free` do not and never will. An id the
+  registry does not know falls back to the provider-wide flag, so an unknown
+  model never receives a parameter it may reject.
+- **A rejected batch is halved and retried** (at most twice) before any unit is
+  marked failed: a short payload is what a weak model can hold in the required
+  shape, and that costs less than failing good units.
+- **Contract failures skip the backoff ladder.** One immediate re-ask replaces
+  the 5s/10s/20s/40s jitter sequence, so a chatty reply costs seconds instead
+  of a minute per provider. Rate limits and offline still back off normally.
+- **Failure messages now carry the evidence**: the message reads
+  `Translation response was not valid JSON [model=…; finish_reason=…;
+  reply="…"]`, with the same facts under `details.finishReason` and
+  `details.responseSnippet` (whitespace-collapsed and capped, so a returned
+  HTML page cannot flood a toast or a job record).
+
+### Changed
+
+- Behavior section of Settings gained **Parallel batches** next to
+  **Parallel jobs**.
+
 ## [0.7.0] — More free-tier models (2026-10-06)
 
 The catalog now ships every model a non-paying user can actually run on each

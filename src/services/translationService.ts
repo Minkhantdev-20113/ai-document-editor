@@ -39,8 +39,22 @@ import { MEMORY_THRESHOLDS } from '../domain/translationMemory';
  */
 
 const MAX_ATTEMPTS_PER_PROVIDER = 5;
+/**
+ * Attempts for a *contract* failure (the model answered in prose, dropped
+ * units, or returned malformed JSON). Such replies are not transient - five
+ * jittered backoffs would buy a minute of nothing - so one immediate re-ask
+ * absorbs a bad sampling and the engine moves on to the next provider or to a
+ * smaller batch.
+ */
+const CONTRACT_ATTEMPTS_PER_PROVIDER = 2;
 const RETRY_BASE_MS = 5_000;
 const RETRY_MAX_MS = 90_000;
+/**
+ * How many times a rejected batch may be halved before its units are marked
+ * failed: 4 batches from one, so a weak model that only copes with short
+ * payloads still gets a fair chance without an unbounded request spiral.
+ */
+const MAX_BATCH_SPLIT_DEPTH = 2;
 /** Conservative sizing for models missing from the registry (never assume). */
 const FALLBACK_CONTEXT = 8_192;
 const FALLBACK_MAX_OUTPUT = 2_048;
@@ -166,6 +180,18 @@ interface BatchRunOptions {
   readonly glossary?: readonly GlossaryRule[];
   /** Strategy-derived sampling temperature (lower = stricter preservation). */
   readonly temperature?: number;
+}
+
+/**
+ * A batch on the work queue.
+ *
+ * `depth` is how many times it was already halved after a rejected attempt, so
+ * a model that only copes with short payloads still converges instead of
+ * splitting forever.
+ */
+interface QueuedBatch {
+  readonly units: readonly { readonly id: string; readonly text: string }[];
+  readonly depth: number;
 }
 
 function defaultWait(ms: number, signal?: AbortSignal): Promise<void> {
@@ -425,6 +451,17 @@ class TranslationService {
     let lastModel: string | null = null;
     let lastKeyId: string | null = null;
 
+    // Work queue: batches are pulled off it by a small worker pool, and a
+    // rejected batch pushes its two halves back on instead of failing good
+    // units. `batchTotal` therefore grows when a batch is split.
+    const queue: QueuedBatch[] = plan.batches.map((batch) => ({ units: batch.units, depth: 0 }));
+    let batchTotal = plan.batches.length;
+    let batchDone = 0;
+    /** Set once one failure invalidates every remaining batch (config error). */
+    let fatal: AppError | null = null;
+    let paused = false;
+    let aborted = input.signal?.aborted ?? false;
+
     const summary = (status: TranslationStatus): TranslationOutcome => ({
       status,
       translated,
@@ -437,10 +474,13 @@ class TranslationService {
       ...(lastError ? { error: lastError } : {}),
     });
 
-    for (let batchIndex = 0; batchIndex < plan.batches.length; batchIndex += 1) {
-      const batch = plan.batches[batchIndex];
-      if (!batch) continue;
-      if (input.signal?.aborted) return summary('aborted');
+    /**
+     * Runs one batch to a terminal state (saved, failed, split again, or one of
+     * the three run-level stop conditions).
+     */
+    const handleBatch = async (batch: QueuedBatch): Promise<void> => {
+      if (input.signal?.aborted) aborted = true;
+      if (aborted || paused || fatal) return;
 
       // Persist intent before the network call: a refresh mid-request leaves
       // `in_progress` units, which the next run treats as pending (resume).
@@ -451,19 +491,51 @@ class TranslationService {
         ...(glossary.length > 0 ? { glossary } : {}),
         temperature: STRATEGY_TEMPERATURE[strategy],
       });
-      if (outcome.kind === 'aborted') return summary('aborted');
+      if (outcome.kind === 'aborted') {
+        aborted = true;
+        return;
+      }
 
       if (outcome.kind === 'quota') {
         logger.warn('Provider quota exhausted; translation paused', {
           documentId: document.id,
           providerIndex: outcome.providerIndex,
         });
-        return summary('paused_quota');
+        paused = true;
+        return;
       }
 
       if (outcome.kind === 'error') {
         lastError = outcome.error;
-        failed += await this.markBatchFailed(batch.units.map((unit) => unit.id), outcome.error);
+
+        // A rejected batch (the model answered in prose, dropped units, or
+        // returned malformed JSON) is retried as two smaller ones first: a
+        // short payload is what a weak model can hold in the required shape,
+        // and that is cheaper than marking good units failed.
+        if (
+          outcome.error.code === 'provider_rejected' &&
+          batch.units.length > 1 &&
+          batch.depth < MAX_BATCH_SPLIT_DEPTH
+        ) {
+          const mid = Math.ceil(batch.units.length / 2);
+          queue.unshift(
+            { units: batch.units.slice(0, mid), depth: batch.depth + 1 },
+            { units: batch.units.slice(mid), depth: batch.depth + 1 },
+          );
+          batchTotal += 1;
+          logger.warn('Retrying a rejected batch as two smaller batches', {
+            documentId: document.id,
+            units: batch.units.length,
+            depth: batch.depth + 1,
+          });
+          return;
+        }
+
+        // Read-then-add must stay one synchronous step: with batches running in
+        // parallel a `x += await …` would take its left operand *before* the
+        // await and silently drop a concurrent batch's count.
+        const failedUnits = await this.markBatchFailed(batch.units.map((unit) => unit.id), outcome.error);
+        failed += failedUnits;
 
         if (CONFIG_ERROR_CODES.has(outcome.error.code)) {
           // Configuration problem, not content: every remaining batch would
@@ -474,20 +546,22 @@ class TranslationService {
             outcome.error.code === 'provider_invalid_model'
               ? `The model "${candidate?.model ?? ''}" is not available on ${providerLabel}. Open Providers, pick a current model, then run the translation again.`
               : `Every ${providerLabel} API key was rejected. Re-verify the key on the API keys page, then run the translation again.`;
-          lastError = new AppError(hint, {
+          const configError = new AppError(hint, {
             code: outcome.error.code,
             retryable: false,
             details: outcome.error.details,
           });
+          lastError = configError;
+          fatal = configError;
           logger.error('Aborting translation: configuration error would repeat for every batch', {
             documentId: document.id,
             providerId: candidate?.providerId ?? null,
             model: candidate?.model ?? null,
             code: outcome.error.code,
-            batchIndex: batchIndex + 1,
-            batchCount: plan.batches.length,
+            batchIndex: batchDone + 1,
+            batchCount: batchTotal,
           });
-          return summary('failed');
+          return;
         }
 
         // Next batch prefers a different provider than the one that failed.
@@ -498,7 +572,9 @@ class TranslationService {
         lastProvider = outcome.providerId;
         lastModel = outcome.model;
         lastKeyId = outcome.keyId;
-        translated += await this.markBatchTranslated(batch.units, outcome, document);
+        // Same synchronous read-then-add as `failed` - see above.
+        const savedUnits = await this.markBatchTranslated(batch.units, outcome, document);
+        translated += savedUnits;
         markPagesDone(batch.units.map((unit) => unit.id));
         await usageService.record({
           providerId: outcome.providerId,
@@ -512,19 +588,48 @@ class TranslationService {
         });
       }
 
+      batchDone += 1;
       input.onProgress?.({
         documentId: document.id,
         processed: skipped + translated + failed + memoryFilled,
         total: allUnits.length,
-        batchIndex: batchIndex + 1,
-        batchCount: plan.batches.length,
+        batchIndex: batchDone,
+        batchCount: batchTotal,
         providerId: lastProvider ?? candidates[0]?.providerId ?? null,
         model: lastModel ?? candidates[0]?.model ?? null,
         keyId: lastKeyId,
         ...pageProgress(),
       });
       appEvents.emit('units:changed', { documentId: document.id });
+    };
+
+    const worker = async (): Promise<void> => {
+      while (!aborted && !paused && !fatal) {
+        const next = queue.shift();
+        if (!next) return;
+        await handleBatch(next);
+      }
+    };
+
+    // Canary: the first batch runs alone to prove keys, model and endpoint
+    // work. A configuration error therefore costs exactly one request instead
+    // of `width` ones, which is what the sequential behaviour guaranteed.
+    const canary = queue.shift();
+    if (canary) await handleBatch(canary);
+
+    // The user may have paused/refreshed while the canary ran: never fan out
+    // after a stop request.
+    if (input.signal?.aborted) aborted = true;
+
+    if (!aborted && !paused && !fatal && queue.length > 0) {
+      const configured = settingsService.value('batchConcurrency');
+      const width = Math.max(1, Math.min(6, Number.isFinite(configured) && configured > 0 ? configured : 1));
+      await Promise.all(Array.from({ length: Math.min(width, queue.length) }, () => worker()));
     }
+
+    if (fatal) return summary('failed');
+    if (paused) return summary('paused_quota');
+    if (aborted) return summary('aborted');
 
     const finalStatus: TranslationStatus =
       failed > 0 && translated === 0 && skipped === 0 ? 'failed' : 'completed';
@@ -653,6 +758,13 @@ class TranslationService {
             // Content policy / malformed responses: fail this batch's units.
             nonQuotaFailure = appError;
             return { kind: 'error', error: appError, providerIndex };
+          }
+
+          // Contract failures are not transient: no backoff ladder, no
+          // minutes of waiting - a short payload or another model is the fix.
+          if (appError.code === 'provider_rejected') {
+            if (attempt + 1 >= CONTRACT_ATTEMPTS_PER_PROVIDER) break;
+            continue;
           }
 
           // Offline (Phase 4 network rule): pause AI requests until

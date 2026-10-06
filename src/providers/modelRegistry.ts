@@ -107,19 +107,82 @@ const MODEL_META: Readonly<Record<string, ModelMeta>> = {
   // Qwen 3.8 27B is the third chat model on Groq's free plan (450 tok/s, text
   // only - no image/PDF claim without a documented one).
   'groq/qwen/qwen3.8-27b': { pricing: 'free_tier', quality: 'medium', speed: 'fast' },
-  'openrouter/openai/gpt-4o-mini': { pricing: 'paid', quality: 'medium', speed: 'fast', image: true, vision: true },
+  // `structuredOutput` is the only per-model capability the request builder
+  // acts on: it decides whether `response_format: {"type":"json_object"}` is
+  // sent. Declared ONLY where the live OpenRouter model payload lists
+  // `response_format` in `supported_parameters` (checked 2026-10-06); sending
+  // it to a model that cannot accept it can fail the whole request, and
+  // omitting it lets a chatty model answer in prose and break the JSON contract.
+  'openrouter/openai/gpt-4o-mini': {
+    pricing: 'paid',
+    quality: 'medium',
+    speed: 'fast',
+    image: true,
+    vision: true,
+    structuredOutput: true,
+  },
   // Image input comes from the live model payload (`text+image+file->text`);
   // PDF stays undeclared - "file" is not a documented PDF contract.
-  'openrouter/anthropic/claude-sonnet-5.5': { pricing: 'paid', quality: 'high', speed: 'medium', image: true, vision: true },
-  'openrouter/google/gemini-3.5-flash': { pricing: 'paid', quality: 'medium', speed: 'fast', image: true, vision: true },
+  'openrouter/anthropic/claude-sonnet-5.5': {
+    pricing: 'paid',
+    quality: 'high',
+    speed: 'medium',
+    image: true,
+    vision: true,
+    structuredOutput: true,
+  },
+  'openrouter/google/gemini-3.5-flash': {
+    pricing: 'paid',
+    quality: 'medium',
+    speed: 'fast',
+    image: true,
+    vision: true,
+    structuredOutput: true,
+  },
   // `:free` variants: $0 prompt/completion with published caps, so they get
   // FREE (not FREE TIER) - the caps still apply and the ids can expire.
-  'openrouter/thinkingmachines/inkling:free': { pricing: 'free', quality: 'high', speed: 'medium', image: true, vision: true },
-  'openrouter/thinkingmachines/inkling-small:free': { pricing: 'free', quality: 'medium', speed: 'fast', image: true, vision: true },
-  'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free': { pricing: 'free', quality: 'high', speed: 'medium' },
-  'openrouter/nvidia/nemotron-3.5-lightning:free': { pricing: 'free', quality: 'low', speed: 'fast' },
-  'openrouter/nvidia/nemotron-3-super-120b-a12b:free': { pricing: 'free', quality: 'medium', speed: 'fast' },
-  'openrouter/google/gemma-4-31b-it:free': { pricing: 'free', quality: 'medium', speed: 'fast', image: true, vision: true },
+  'openrouter/thinkingmachines/inkling:free': {
+    pricing: 'free',
+    quality: 'high',
+    speed: 'medium',
+    image: true,
+    vision: true,
+    structuredOutput: false,
+  },
+  'openrouter/thinkingmachines/inkling-small:free': {
+    pricing: 'free',
+    quality: 'medium',
+    speed: 'fast',
+    image: true,
+    vision: true,
+    structuredOutput: false,
+  },
+  'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free': {
+    pricing: 'free',
+    quality: 'high',
+    speed: 'medium',
+    structuredOutput: false,
+  },
+  'openrouter/nvidia/nemotron-3.5-lightning:free': {
+    pricing: 'free',
+    quality: 'low',
+    speed: 'fast',
+    structuredOutput: false,
+  },
+  'openrouter/nvidia/nemotron-3-super-120b-a12b:free': {
+    pricing: 'free',
+    quality: 'medium',
+    speed: 'fast',
+    structuredOutput: true,
+  },
+  'openrouter/google/gemma-4-31b-it:free': {
+    pricing: 'free',
+    quality: 'medium',
+    speed: 'fast',
+    image: true,
+    vision: true,
+    structuredOutput: true,
+  },
   'openai_compatible/gpt-4o-mini': { pricing: 'paid', quality: 'medium', speed: 'fast' },
   'openai_compatible/gpt-4o': { pricing: 'paid', quality: 'high', speed: 'medium' },
   // Mistral's Experiment tier lists Mistral Small among its free models
@@ -220,6 +283,22 @@ export function requireModelSpec(providerId: ProviderId, modelId: string, option
     });
   }
   return spec;
+}
+
+/**
+ * May `response_format: { type: 'json_object' }` be sent for this model?
+ *
+ * Built-ins answer from the model registry (per-model declaration, otherwise
+ * the provider-wide flag). An id the registry does not know - a user-typed
+ * id on a self-hosted endpoint, or a route that just appeared upstream -
+ * falls back to the *provider* flag, so an unknown model never receives a
+ * parameter it might reject. Catalog overlays are intentionally not applied
+ * here: the request path must stay synchronous and side-effect free.
+ */
+export function modelSupportsJsonMode(providerId: ProviderId, modelId: string): boolean {
+  const spec = modelSpecs(providerId).find((entry) => entry.modelId === modelId);
+  if (spec) return spec.supportsStructuredOutput;
+  return PROVIDER_CATALOG[providerId].capabilities.jsonMode;
 }
 
 const PATCH_KEYS = new Set<string>([
