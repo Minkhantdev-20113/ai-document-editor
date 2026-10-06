@@ -35,6 +35,14 @@ each provider's own documentation and live model API on 2026-10-06.
 - The Providers card prints the daily cap (`RPD`) next to `RPM` whenever the
   catalog publishes one.
 
+### Added — recommendation
+
+- Every provider now marks exactly one **Recommended** model
+  (`openai_compatible` had none), surfaced as a badge in the model registry and
+  as a "· Recommended" suffix on the default-model dropdown, in English and
+  Burmese. Both read the catalog, so the badge always names the model
+  `defaultConfig` picks for a fresh install.
+
 ### Changed — rate limits
 
 - `basis` is now `per-account` for all three hosted providers, matching what
@@ -47,6 +55,14 @@ each provider's own documentation and live model API on 2026-10-06.
 - Gemini's notes now carry the reported free-tier figures (≈20 requests/day on
   Flash, ≈500/day on Flash-Lite, ~5–15 RPM, reset at midnight Pacific) while
   stating plainly that Google publishes none of them.
+
+### Fixed — stale state
+
+- `apiKeyService.remove` now deletes the `keyRuntime` failover row along with
+  the key. It used to survive, so the pool kept health/cooldown/counter state
+  for a key no UI could list any more; the bootstrap and post-import sweep now
+  drops any runtime row whose key metadata is gone, which also clears orphans
+  left behind by older builds.
 
 ### Fixed — facts
 

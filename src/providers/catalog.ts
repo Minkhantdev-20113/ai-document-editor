@@ -131,7 +131,7 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderDescriptor>> 
     // checked 2026-10) and is listed in the free Experiment tier. There is no
     // universal id for a self-hosted server - take it from its /v1/models.
     models: [
-      { id: 'gpt-4o-mini', label: 'GPT-4o mini', contextWindow: 128_000, maxOutputTokens: 16_384 },
+      { id: 'gpt-4o-mini', label: 'GPT-4o mini', contextWindow: 128_000, maxOutputTokens: 16_384, recommended: true },
       { id: 'gpt-4o', label: 'GPT-4o', contextWindow: 128_000, maxOutputTokens: 16_384 },
       { id: 'mistral-small-latest', label: 'Mistral Small 4 (Mistral free tier)', contextWindow: 256_000, maxOutputTokens: 8_192 },
     ],

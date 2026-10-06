@@ -322,6 +322,10 @@ providers/modelRegistry.ts per-model facts, pricing, overlay validation
 - `RateLimitPolicy.basis` (`per-key | per-account | per-model`) exists so the
   app can never claim that configuring a second key doubles a per-account
   quota.
+- Failover state never outlives its key: `apiKeyService.remove` deletes the
+  metadata, the ciphertext and the `keyRuntime` row together, and
+  `providerCleanup` sweeps any runtime row whose key metadata is gone - at
+  bootstrap and after a data import.
 
 **The key pool (`services/keyPoolService.ts` + `domain/provider/keySelection.ts`).**
 Selection is weighted, never round-robin: hard gates (disabled, failed

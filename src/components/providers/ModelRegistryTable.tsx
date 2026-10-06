@@ -100,6 +100,11 @@ export function ModelRegistryTable({ specs, configs, onToggle }: ModelRegistryTa
                             {t('registry.default')}
                           </Badge>
                         )}
+                        {spec.recommended && (
+                          <Badge tone="info" dot={false}>
+                            {t('registry.recommended')}
+                          </Badge>
+                        )}
                         {spec.source === 'catalog_update' && (
                           <Badge tone="info" dot={false}>
                             {t('registry.updated')}

@@ -42,6 +42,8 @@ export interface ModelSpec {
   readonly supportsVision: boolean;
   readonly qualityLevel: Level;
   readonly speedLevel: SpeedLevel;
+  /** The model the provider itself suggests as a default (`recommended`). */
+  readonly recommended: boolean;
   readonly enabled: boolean;
   readonly source: 'builtin' | 'catalog_update';
 }
@@ -180,6 +182,7 @@ function specFor(descriptorModels: readonly ModelDescriptor[], providerId: Provi
       supportsVision: meta.vision ?? false,
       qualityLevel: meta.quality,
       speedLevel: meta.speed,
+      recommended: model.recommended ?? false,
       enabled: enabledModels ? enabledModels.includes(model.id) : true,
       source: 'builtin',
     };

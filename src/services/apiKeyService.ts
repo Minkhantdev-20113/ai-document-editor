@@ -3,7 +3,7 @@ import { AppError, toAppError } from '../core/errors/appError';
 import { logger } from '../core/logging/logger';
 import { newId } from '../core/utils/id';
 import { maskSecret } from '../core/utils/redact';
-import { apiKeysRepo } from '../db/repositories';
+import { apiKeysRepo, keyRuntimeRepo } from '../db/repositories';
 import type { ApiKeyMetadata, ApiKeyStatus } from '../db/entities';
 import { keyVault } from '../security/keyVault';
 import { getAdapter, looksLikeKey } from '../providers/registry';
@@ -134,6 +134,12 @@ class ApiKeyService {
 
   async remove(id: string): Promise<void> {
     await apiKeysRepo.delete(id);
+    // Failover state belongs to a key: without this the `keyRuntime` row
+    // (health, cooldown, counters) outlives the key it describes, and the pool
+    // would keep a candidate that no longer exists in any list.
+    await keyRuntimeRepo.delete(id).catch((error: unknown) => {
+      logger.warn('Key runtime state could not be removed', { keyId: id, error: String(error) });
+    });
     await keyVault.deleteSecret(id).catch((error: unknown) => {
       logger.warn('Encrypted secret could not be removed', { keyId: id, error: String(error) });
     });

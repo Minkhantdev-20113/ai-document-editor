@@ -46,6 +46,22 @@ export async function removeUnsupportedProviderState(): Promise<void> {
     }
     if (orphanKeyIds.length > 0) await keyRuntimeRepo.deleteMany(orphanKeyIds);
 
+    // Failover state without a key is dead state: `apiKeyMetadata` is the
+    // source of truth for "this key exists". Older builds removed a key and
+    // left its `keyRuntime` row behind (health, cooldown, counters), and a
+    // partially imported file can do the same - so sweep by key id, not by
+    // provider, which also covers rows this run has just orphaned.
+    const liveKeyIds = new Set((await apiKeyService.list()).map((key) => key.id));
+    const orphanRuntimeIds = (await keyRuntimeRepo.getAll())
+      .filter((runtime) => !liveKeyIds.has(runtime.id))
+      .map((runtime) => runtime.id);
+    if (orphanRuntimeIds.length > 0) {
+      await keyRuntimeRepo.deleteMany(orphanRuntimeIds);
+      logger.info('Dropped failover state of keys that no longer exist', {
+        keyRuntime: orphanRuntimeIds.length,
+      });
+    }
+
     if (providerConfigs > 0 || apiKeys > 0) {
       logger.info('Dropped stored state of unsupported providers', {
         providerConfigs,

@@ -42,6 +42,7 @@ describe('model registry facts', () => {
       expect(typeof spec.supportsVision).toBe('boolean');
       expect(['high', 'medium', 'low']).toContain(spec.qualityLevel);
       expect(['fast', 'medium', 'slow']).toContain(spec.speedLevel);
+      expect(typeof spec.recommended).toBe('boolean');
       expect(typeof spec.enabled).toBe('boolean');
       expect(spec.source).toBe('builtin');
       // Pricing flags must agree with the pricing class.
@@ -114,6 +115,18 @@ describe('model registry facts', () => {
     expect(free.every((spec) => spec.modelId.endsWith(':free'))).toBe(true);
     expect(free.every((spec) => spec.freeTier && !spec.paid)).toBe(true);
     expect(specs.find((spec) => spec.modelId === 'openai/gpt-4o-mini')?.pricingType).toBe('paid');
+  });
+
+  it('recommends exactly one model per provider, and it is the catalog one', () => {
+    for (const providerId of PROVIDER_IDS) {
+      const recommended = modelSpecs(providerId).filter((spec) => spec.recommended);
+      expect(recommended).toHaveLength(1);
+      // The registry badge and the default-model dropdown must name the same
+      // model, or "Recommended" points at something `defaultConfig` never picks.
+      expect(recommended[0]?.modelId).toBe(
+        getProviderDescriptor(providerId).models.find((model) => model.recommended)?.id,
+      );
+    }
   });
 });
 

@@ -475,6 +475,7 @@ export const my: Dictionary = {
     on: 'ဖွင့်',
     off: 'ပိတ်',
     default: 'မူလ',
+    recommended: 'အကြံပြုထားသည်',
     updated: 'catalog ပြင်ဆင်မှု',
     free: 'FREE',
     freeTier: 'FREE TIER',

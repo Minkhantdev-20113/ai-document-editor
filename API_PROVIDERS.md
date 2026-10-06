@@ -79,6 +79,9 @@ Notes that matter before you plan a run:
 
 Providers ship **disabled**; enabling one and picking `enabledModels` gates
 what the key pool may use, and the default model must stay inside that list.
+Each provider also marks exactly one **Recommended** model — the one a fresh
+install selects as its default — shown as a badge in the model registry and
+after the name in the default-model dropdown.
 
 ## Free vs paid models — labels, not promises
 

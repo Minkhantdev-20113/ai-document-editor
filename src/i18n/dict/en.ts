@@ -473,6 +473,7 @@ export const en = {
     on: 'On',
     off: 'Off',
     default: 'Default',
+    recommended: 'Recommended',
     updated: 'Catalog update',
     free: 'FREE',
     freeTier: 'FREE TIER',

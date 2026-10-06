@@ -76,7 +76,10 @@ function ProviderCard({ descriptor, config, keyCount, onChanged, onSave, saving,
           label={t('providers.defaultModel')}
           value={model}
           onChange={(event) => onChanged(descriptor.id, { defaultModel: event.target.value })}
-          options={descriptor.models.map((entry) => ({ value: entry.id, label: entry.label }))}
+          options={descriptor.models.map((entry) => ({
+            value: entry.id,
+            label: entry.recommended ? `${entry.label} · ${t('registry.recommended')}` : entry.label,
+          }))}
         />
       </div>
 

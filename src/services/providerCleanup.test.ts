@@ -84,6 +84,23 @@ describe('removeUnsupportedProviderState', () => {
     expect(await keyRuntimeRepo.get('key_gemini')).toBeDefined();
   });
 
+  it('drops failover state whose key no longer exists', async () => {
+    // `apiKeyMetadata` is the source of truth for "this key exists": a
+    // `keyRuntime` row without one is what a removal from an older build (or a
+    // partial import) left behind, and the pool would keep selecting it.
+    await apiKeysRepo.put(storedKey('key_live', 'gemini'));
+    await keyPoolService.ensure('key_live', 'gemini');
+    await keyPoolService.ensure('key_gone', 'gemini');
+    expect(await keyRuntimeRepo.get('key_gone')).toBeDefined();
+
+    await removeUnsupportedProviderState();
+
+    expect(await keyRuntimeRepo.get('key_gone')).toBeUndefined();
+    // The live key keeps its health, cooldown and counters.
+    expect(await keyRuntimeRepo.get('key_live')).toBeDefined();
+    expect(await apiKeysRepo.get('key_live')).toBeDefined();
+  });
+
   it('is a no-op when every stored provider is still supported', async () => {
     await providerConfigsRepo.put(storedConfig('groq', true));
     await apiKeysRepo.put(storedKey('key_groq', 'groq'));

@@ -17,7 +17,7 @@ limitations are cross-referenced to [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 | 0.7 | free-tier model catalog: every model each provider serves free-of-charge (Gemini ×6, Groq ×3, OpenRouter `:free` ×6, Mistral on a compatible endpoint) with published rate limits | **done** (v0.7.0) |
 
 Last verification: `tsc --noEmit` 0 errors, `eslint .` 0 errors,
-`vitest run` 49 files / 416 tests passed, `vite build` succeeded.
+`vitest run` 50 files / 420 tests passed, `vite build` succeeded.
 
 ## Next
 
