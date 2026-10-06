@@ -220,14 +220,23 @@ export function detectLanguage(text: string): LanguageDetection {
   // Latin script: separate languages with stopword + distinctive-char evidence.
   const latinShare = shareOf('latin');
   const words = tokenizeWords(sample);
-  const checked = Math.max(1, Math.min(words.length, 400));
+  // Evidence and its denominator must cover the same window: counting
+  // stopword tokens over every word while dividing by a 400-word cap would
+  // inflate long samples instead.
+  const window = words.slice(0, 400);
+  const checked = Math.max(1, window.length);
   const scoresLatin: Record<string, number> = {};
 
+  // Evidence is the stopword TOKEN share - what fraction of the running words
+  // are that language's stopwords (prose runs ~15-25%). It used to be
+  // "distinct stopword types present" divided by the word count: a type count
+  // is capped at ~19 while the denominator grew to 400, so confidence FELL as
+  // evidence accumulated and every real document tripped the confirm banner.
   let bestLanguage = 'en';
   let bestEvidence = 0;
   for (const language of LATIN_CANDIDATES) {
-    const hits = countStopwordHits(words, STOPWORDS[language] ?? []);
-    const value = hits / checked;
+    const value = countStopwordTokens(window, STOPWORDS[language] ?? []) / checked;
+    scoresLatin[language] = value;
     if (value > bestEvidence) {
       bestEvidence = value;
       bestLanguage = language;
@@ -250,15 +259,20 @@ export function detectLanguage(text: string): LanguageDetection {
         break;
       }
     }
+    // Every candidate scored 0; keep a single non-zero entry so `finalize`
+    // cannot report `unknown` for stopword-free text - the confidence below
+    // stays low, so the UI still asks instead of guessing.
+    for (const language of LATIN_CANDIDATES) scoresLatin[language] = 0;
+    scoresLatin[bestLanguage] = bestEvidence > 0 ? 0.04 : Math.max(latinShare * 0.5, 0.35);
   }
 
-  scoresLatin[bestLanguage] = Math.max(bestEvidence * 2, latinShare * 0.5, bestEvidence > 0 ? 0.05 : 0.35);
+  // Confidence = evidence strength, tempered for short samples and scaled by
+  // the Latin share so mixed-script text stays below the confirm threshold
+  // even when one Latin language clearly leads.
   const confidence =
     bestEvidence > 0
-      ? 0.3 + Math.min(0.6, bestEvidence * 3) * (0.6 + 0.4 * sampleFactor)
-      : bestEvidence === 0
-        ? 0.35
-        : 0.45;
+      ? (0.35 + Math.min(0.55, bestEvidence * 6) * (0.7 + 0.3 * sampleFactor)) * latinShare
+      : 0.35;
   return finalize(scoresLatin, sample.length, confidence);
 }
 
@@ -274,6 +288,16 @@ function countStopwordHits(words: string | readonly string[], stopwords: readonl
   let hits = 0;
   for (const stopword of stopwords) {
     if (set.has(stopword)) hits += 1;
+  }
+  return hits;
+}
+
+/** Stopword OCCURRENCES among `words` (frequency evidence, not distinct types). */
+function countStopwordTokens(words: readonly string[], stopwords: readonly string[]): number {
+  const set = new Set(stopwords);
+  let hits = 0;
+  for (const word of words) {
+    if (set.has(word)) hits += 1;
   }
   return hits;
 }

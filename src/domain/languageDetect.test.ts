@@ -36,6 +36,37 @@ describe('detectLanguage', () => {
     expect(result.confidence).toBeGreaterThan(LANGUAGE_CONFIRM_THRESHOLD);
   });
 
+  it('does not lose confidence as a clear English sample grows', () => {
+    // Regression: evidence used to be distinct stopword types over a word
+    // count, so confidence FELL as the sample grew (0.9 at 40 words, 0.38 at
+    // 400) and long English documents always showed the confirm banner.
+    const short = detectLanguage(ENGLISH_SAMPLE);
+    const long = detectLanguage(ENGLISH_SAMPLE.repeat(20));
+    expect(long.code).toBe('en');
+    expect(long.sampleChars).toBeGreaterThan(short.sampleChars);
+    expect(long.confidence).toBeGreaterThanOrEqual(short.confidence);
+    expect(long.confidence).toBeGreaterThan(LANGUAGE_CONFIRM_THRESHOLD);
+  });
+
+  it('asks for confirmation when a non-Latin script fills much of the sample', () => {
+    const mixed = `${ENGLISH_SAMPLE.repeat(8)} ${BURMESE_SAMPLE.repeat(6)}`;
+    const result = detectLanguage(mixed);
+    // Latin still leads the script histogram, so the Latin branch decides -
+    // but the Burmese share must keep the result below auto-confirmation.
+    expect(result.code).toBe('en');
+    expect(result.confidence).toBeLessThan(LANGUAGE_CONFIRM_THRESHOLD);
+  });
+
+  it('shows relative support instead of pinning the winner at 100%', () => {
+    const result = detectLanguage(`${ENGLISH_SAMPLE} ${FRENCH_SAMPLE}`);
+    expect(result.code).toBe('en');
+    // The winner badge used to be the only entry, i.e. always "100%", next to
+    // a confidence of 38% - two numbers that could never agree.
+    expect(result.scores.en).toBeLessThan(1);
+    expect(result.scores.fr).toBeGreaterThan(0);
+    expect(result.scores.en).toBeGreaterThan(result.scores.fr ?? 0);
+  });
+
   it('separates French, German and Spanish', () => {
     expect(detectLanguage(FRENCH_SAMPLE).code).toBe('fr');
     expect(detectLanguage(GERMAN_SAMPLE).code).toBe('de');
