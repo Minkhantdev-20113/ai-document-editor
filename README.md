@@ -249,6 +249,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design and
 | [EXPORT_PIPELINE.md](./EXPORT_PIPELINE.md) | export worker, fonts, layout plan, checkpoints, validation, formats |
 | [OFFLINE_FIRST.md](./OFFLINE_FIRST.md) | local-first data, offline mode, optional cloud sync, Google Apps Script |
 | [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | common failures, recovery paths, known limitations |
+| [TODO.md](./TODO.md) | phase status, next work items, deliberate scope limits |
 
 ## Data, privacy and keys
 
