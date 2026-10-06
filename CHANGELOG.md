@@ -3,6 +3,71 @@
 All notable changes to the AI Document Translator are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.0] — More free-tier models (2026-10-06)
+
+The catalog now ships every model a non-paying user can actually run on each
+provider, together with the caps those providers publish — re-checked against
+each provider's own documentation and live model API on 2026-10-06.
+
+### Added — models
+
+- **Gemini**: `gemini-3.7-flash`, `gemini-3.6-flash` and `gemini-3.1-flash-lite`
+  join the existing Flash trio — the six stable chat models on
+  ai.google.dev/gemini-api/docs/models, each 1,048,576 input / 65,536 output
+  with text, image, video, audio and PDF input (the source of the registry's
+  PDF badges). Previews stay out because Google renumbers them, and the 2.5
+  line stays out because Google only serves it to accounts that used it.
+- **Groq**: `qwen/qwen3.8-27b`, the third chat model on Groq's free plan
+  (131,072 context / 16,384 output). No Llama chat model is left after the
+  2026-08-16 shutdown, and `gpt-oss-safeguard-20b` stays out on purpose — its
+  3 RPM ceiling cannot translate a document.
+- **OpenRouter**: six zero-priced routes verified against the live
+  `/api/v1/model/<id>` payload — `thinkingmachines/inkling:free`,
+  `thinkingmachines/inkling-small:free`,
+  `nvidia/nemotron-3-ultra-550b-a55b:free`, `nvidia/nemotron-3.5-lightning:free`,
+  `nvidia/nemotron-3-super-120b-a12b:free` and `google/gemma-4-31b-it:free` —
+  so the registry now has something to show **FREE** (zero-priced with
+  published caps) besides **FREE TIER** and **PAID**.
+- **OpenAI-compatible**: `mistral-small-latest` (Mistral Small 4, 256K) for
+  Mistral's free Experiment tier, plus a note that a self-hosted Ollama/vLLM
+  server is the unlimited free option and that ids must match what the
+  endpoint serves.
+- The Providers card prints the daily cap (`RPD`) next to `RPM` whenever the
+  catalog publishes one.
+
+### Changed — rate limits
+
+- `basis` is now `per-account` for all three hosted providers, matching what
+  they document: Google limits per **project**, Groq per **organisation** (and
+  per model), OpenRouter per account. A second key never multiplies any of
+  them, so the key pool now measures them as one window; the card's notes say
+  so in words.
+- Groq's free-plan policy gains `requestsPerDay: 1_000` (with 30 RPM, 8K TPM
+  and 200K TPD per model) — the first daily cap the catalog records.
+- Gemini's notes now carry the reported free-tier figures (≈20 requests/day on
+  Flash, ≈500/day on Flash-Lite, ~5–15 RPM, reset at midnight Pacific) while
+  stating plainly that Google publishes none of them.
+
+### Fixed — facts
+
+- `anthropic/claude-sonnet-5.5` max output corrected 64,000 → 128,000 and its
+  image/vision badges added, both read from OpenRouter's live model payload;
+  the same payload re-confirmed the GPT-4o mini and Gemini 3.5 Flash entries.
+
+### Docs
+
+- `API_PROVIDERS.md`: provider table carries the real per-day/per-minute caps
+  and a new "Free models in the built-in catalog (checked 2026-10-06)" section
+  listing each free model, its cap, the rotation caveat (a `:free` id expired
+  between two checks a day apart) and which OpenAI-compatible endpoints are
+  still free in Oct 2026 (Cerebras and SambaNova now want a card).
+
+### Tests
+
+- The PDF-badge list follows the six Gemini models, and two new cases pin
+  "every provider ships a free-capable model with a documented rate-limit
+  policy" and "`:free` is the only FREE label on OpenRouter".
+
 ## [0.6.0] — On-device OCR (2026-10-06)
 
 Image-only pages are read instead of staying empty: a built-in Tesseract engine

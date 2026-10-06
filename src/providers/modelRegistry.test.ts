@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AppError } from '../core/errors/appError';
-import { listProviderDescriptors } from './registry';
+import { getProviderDescriptor, listProviderDescriptors } from './registry';
+import { PROVIDER_IDS } from './types';
 import {
   allModelSpecs,
   modelSpecs,
@@ -53,12 +54,16 @@ describe('model registry facts', () => {
   it('never assumes PDF support - only explicitly declared models get it', () => {
     const specs = allModelSpecs();
     const pdfModels = specs.filter((spec) => spec.supportsPDF).map((spec) => `${spec.providerId}/${spec.modelId}`);
-    // Built-in declarations: only the current Gemini text models declare PDF
-    // input (verified on their model cards).
+    // Built-in declarations: only the current Gemini chat models declare PDF
+    // input - every one of their model cards lists PDF among the accepted
+    // input types.
     expect(pdfModels).toEqual([
       'gemini/gemini-3.8-flash',
+      'gemini/gemini-3.7-flash',
+      'gemini/gemini-3.6-flash',
       'gemini/gemini-3.5-flash',
       'gemini/gemini-3.5-flash-lite',
+      'gemini/gemini-3.1-flash-lite',
     ]);
     // A text-only provider model must never claim PDF or vision.
     const groq = requireModelSpec('groq', 'openai/gpt-oss-20b');
@@ -72,6 +77,43 @@ describe('model registry facts', () => {
     const filtered = modelSpecs('groq', { enabledModels: ['openai/gpt-oss-20b'] });
     expect(filtered.find((spec) => spec.modelId === 'openai/gpt-oss-20b')?.enabled).toBe(true);
     expect(filtered.find((spec) => spec.modelId === 'openai/gpt-oss-120b')?.enabled).toBe(false);
+  });
+
+  it('offers every provider at least one model a non-paying user can run', () => {
+    for (const providerId of PROVIDER_IDS) {
+      const specs = modelSpecs(providerId);
+      expect(specs.length).toBeGreaterThan(0);
+      expect(specs.some((spec) => spec.freeTier)).toBe(true);
+      // Rate limits are shown in the UI, so each policy must explain itself.
+      expect(getProviderDescriptor(providerId).rateLimit.notes.length).toBeGreaterThan(40);
+    }
+    // Hosted providers publish numbers; the self-hosted one deliberately
+    // publishes none, because the app cannot know an endpoint's policy.
+    expect(getProviderDescriptor('gemini').rateLimit).toMatchObject({
+      basis: 'per-account',
+      requestsPerMinute: 15,
+    });
+    expect(getProviderDescriptor('groq').rateLimit).toMatchObject({
+      basis: 'per-account',
+      requestsPerMinute: 30,
+      requestsPerDay: 1_000,
+    });
+    expect(getProviderDescriptor('openrouter').rateLimit).toMatchObject({
+      basis: 'per-account',
+      requestsPerMinute: 20,
+    });
+    const compatible = getProviderDescriptor('openai_compatible').rateLimit;
+    expect(compatible.requestsPerMinute).toBeUndefined();
+    expect(compatible.requestsPerDay).toBeUndefined();
+  });
+
+  it('labels only real `:free` routes FREE - and never a paid route', () => {
+    const specs = modelSpecs('openrouter');
+    const free = specs.filter((spec) => spec.pricingType === 'free');
+    expect(free.length).toBeGreaterThanOrEqual(5);
+    expect(free.every((spec) => spec.modelId.endsWith(':free'))).toBe(true);
+    expect(free.every((spec) => spec.freeTier && !spec.paid)).toBe(true);
+    expect(specs.find((spec) => spec.modelId === 'openai/gpt-4o-mini')?.pricingType).toBe('paid');
   });
 });
 

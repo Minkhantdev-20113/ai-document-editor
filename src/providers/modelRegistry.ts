@@ -92,16 +92,37 @@ interface ModelMeta {
  */
 const MODEL_META: Readonly<Record<string, ModelMeta>> = {
   // Ids mirror PROVIDER_CATALOG; flags follow each provider's model docs.
+  // Gemini rows: every model card lists PDF/image/video/audio input and the
+  // free-tier price of $0 (with the paid rate above it).
   'gemini/gemini-3.8-flash': { pricing: 'free_tier', quality: 'high', speed: 'fast', pdf: true, image: true, vision: true },
+  'gemini/gemini-3.7-flash': { pricing: 'free_tier', quality: 'high', speed: 'fast', pdf: true, image: true, vision: true },
+  'gemini/gemini-3.6-flash': { pricing: 'free_tier', quality: 'medium', speed: 'fast', pdf: true, image: true, vision: true },
   'gemini/gemini-3.5-flash': { pricing: 'free_tier', quality: 'medium', speed: 'fast', pdf: true, image: true, vision: true },
   'gemini/gemini-3.5-flash-lite': { pricing: 'free_tier', quality: 'medium', speed: 'fast', pdf: true, image: true, vision: true },
+  'gemini/gemini-3.1-flash-lite': { pricing: 'free_tier', quality: 'medium', speed: 'fast', pdf: true, image: true, vision: true },
   'groq/openai/gpt-oss-120b': { pricing: 'free_tier', quality: 'medium', speed: 'fast' },
   'groq/openai/gpt-oss-20b': { pricing: 'free_tier', quality: 'low', speed: 'fast' },
+  // Qwen 3.8 27B is the third chat model on Groq's free plan (450 tok/s, text
+  // only - no image/PDF claim without a documented one).
+  'groq/qwen/qwen3.8-27b': { pricing: 'free_tier', quality: 'medium', speed: 'fast' },
   'openrouter/openai/gpt-4o-mini': { pricing: 'paid', quality: 'medium', speed: 'fast', image: true, vision: true },
-  'openrouter/anthropic/claude-sonnet-5.5': { pricing: 'paid', quality: 'high', speed: 'medium' },
+  // Image input comes from the live model payload (`text+image+file->text`);
+  // PDF stays undeclared - "file" is not a documented PDF contract.
+  'openrouter/anthropic/claude-sonnet-5.5': { pricing: 'paid', quality: 'high', speed: 'medium', image: true, vision: true },
   'openrouter/google/gemini-3.5-flash': { pricing: 'paid', quality: 'medium', speed: 'fast', image: true, vision: true },
+  // `:free` variants: $0 prompt/completion with published caps, so they get
+  // FREE (not FREE TIER) - the caps still apply and the ids can expire.
+  'openrouter/thinkingmachines/inkling:free': { pricing: 'free', quality: 'high', speed: 'medium', image: true, vision: true },
+  'openrouter/thinkingmachines/inkling-small:free': { pricing: 'free', quality: 'medium', speed: 'fast', image: true, vision: true },
+  'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free': { pricing: 'free', quality: 'high', speed: 'medium' },
+  'openrouter/nvidia/nemotron-3.5-lightning:free': { pricing: 'free', quality: 'low', speed: 'fast' },
+  'openrouter/nvidia/nemotron-3-super-120b-a12b:free': { pricing: 'free', quality: 'medium', speed: 'fast' },
+  'openrouter/google/gemma-4-31b-it:free': { pricing: 'free', quality: 'medium', speed: 'fast', image: true, vision: true },
   'openai_compatible/gpt-4o-mini': { pricing: 'paid', quality: 'medium', speed: 'fast' },
   'openai_compatible/gpt-4o': { pricing: 'paid', quality: 'high', speed: 'medium' },
+  // Mistral's Experiment tier lists Mistral Small among its free models
+  // (no card required); the paid Production tier sits above it.
+  'openai_compatible/mistral-small-latest': { pricing: 'free_tier', quality: 'medium', speed: 'fast' },
 };
 
 /** Lookup with an explicit fallback for models not listed (e.g. `:free` routes). */

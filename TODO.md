@@ -14,9 +14,10 @@ limitations are cross-referenced to [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 | Phase 4 | translation workflow: glossary, memory, validation, editing workspace with manual-edit protection | **done** (v0.4.0) |
 | Phase 5 | export: worker-rendered PDF with HarfBuzz Burmese fonts, checkpoints/resume, DOCX/HTML/TXT/MD/JSON, Export Center | **done** (v0.5.0) |
 | 0.6 | on-device OCR: image-only pages read locally (Tesseract, `eng`/`mya`), honest `needs_ocr` fallback | **done** (v0.6.0) |
+| 0.7 | free-tier model catalog: every model each provider serves free-of-charge (Gemini ×6, Groq ×3, OpenRouter `:free` ×6, Mistral on a compatible endpoint) with published rate limits | **done** (v0.7.0) |
 
 Last verification: `tsc --noEmit` 0 errors, `eslint .` 0 errors,
-`vitest run` 48 files / 410 tests passed, `vite build` succeeded.
+`vitest run` 49 files / 416 tests passed, `vite build` succeeded.
 
 ## Next
 

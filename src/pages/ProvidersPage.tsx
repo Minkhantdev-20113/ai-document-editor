@@ -98,6 +98,9 @@ function ProviderCard({ descriptor, config, keyCount, onChanged, onSave, saving,
           {typeof descriptor.rateLimit.requestsPerMinute === 'number' && (
             <span> · {descriptor.rateLimit.requestsPerMinute} RPM</span>
           )}
+          {typeof descriptor.rateLimit.requestsPerDay === 'number' && (
+            <span> · {descriptor.rateLimit.requestsPerDay} RPD</span>
+          )}
         </div>
         <p className="text-xs subtle">{t('providers.rateLimitNote')}</p>
         <p className="text-xs subtle">{descriptor.rateLimit.notes}</p>

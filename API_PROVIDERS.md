@@ -9,9 +9,9 @@ third-party tier is free forever.
 
 | Provider | Key page | Key format | Base URL | Rate-limit basis | Default guidance |
 | --- | --- | --- | --- | --- | --- |
-| Google Gemini (primary) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | `AIza…` | `https://generativelanguage.googleapis.com/v1beta` | per-key | 15 RPM |
-| Groq | [console.groq.com/keys](https://console.groq.com/keys) | `gsk_…` | `https://api.groq.com/openai/v1` | per-key | 30 RPM |
-| OpenRouter | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | `sk-or-v1-…` | `https://openrouter.ai/api/v1` | per-key | 20 RPM |
+| Google Gemini (primary) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | `AIza…` / `AQ.…` | `https://generativelanguage.googleapis.com/v1beta` | per account (per project) | 15 RPM; ≈20 RPD on Flash, ≈500 RPD on Flash-Lite |
+| Groq | [console.groq.com/keys](https://console.groq.com/keys) | `gsk_…` | `https://api.groq.com/openai/v1` | per account, per model | 30 RPM · 1,000 RPD · 8K TPM |
+| OpenRouter | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | `sk-or-v1-…` | `https://openrouter.ai/api/v1` | per account | 20 RPM; 50 RPD on `:free` routes |
 | OpenAI-compatible | your endpoint | your format | **required** | set by endpoint | none assumed |
 
 **Why DeepSeek is not on this list:** it has no free tier, so there is no way
@@ -24,6 +24,36 @@ are provider-, account- and model-dependent and change without notice.
 Confirm the current numbers on the provider's own page before you plan a big
 run. The OpenAI-compatible adapter assumes *no* default limit, because the
 app cannot know your endpoint's policy.
+
+## Free models in the built-in catalog (checked 2026-10-06)
+
+Every model below can be run without paying, inside the provider's published
+cap. The caps are the whole point: "free" here means *free today, within
+these limits* — nothing claims a model stays free, and Google publishes no
+free-tier figures at all, so its row is a community-reported range.
+
+| Provider | Models | Cap |
+| --- | --- | --- |
+| Gemini | `gemini-3.8-flash` (recommended), `3.7-flash`, `3.6-flash`, `3.5-flash`, `3.5-flash-lite`, `3.1-flash-lite` | $0 on the free tier; ≈20 requests/day on Flash, ≈500/day on Flash-Lite, ~5–15 RPM (reported, not published) |
+| Groq | `openai/gpt-oss-120b` (recommended), `openai/gpt-oss-20b`, `qwen/qwen3.8-27b` | free plan: 30 RPM, 1,000 requests/day, 8K tokens/min, 200K tokens/day — *per model and per organisation* |
+| OpenRouter | `thinkingmachines/inkling:free`, `thinkingmachines/inkling-small:free`, `nvidia/nemotron-3-ultra-550b-a55b:free`, `nvidia/nemotron-3.5-lightning:free`, `nvidia/nemotron-3-super-120b-a12b:free`, `google/gemma-4-31b-it:free` | $0 tokens, 20 RPM, 50 requests/day (1,000/day after the account has bought $10 of credit), one upstream per route |
+| OpenAI-compatible | `mistral-small-latest` (Mistral Experiment tier) and any id your own endpoint serves | whatever the endpoint publishes — the app assumes nothing |
+
+Notes that matter before you plan a run:
+
+- **Free routes rotate.** OpenRouter's free list changes without notice —
+  `qwen/qwen3.8-27b:free` expired between two checks a day apart. Re-verify an
+  id before depending on it; a retired id becomes a typed 404, and the config
+  self-heals to the provider's recommended model.
+- **Free is not unlimited.** Gemini's ~20 requests/day on Flash means roughly
+  one or two batches of a large document; `*-flash-lite` and the OpenRouter
+  free routes tolerate far more. Nothing here multiplies with a second key —
+  all three providers count per account/project, not per key.
+- **Other free OpenAI-compatible endpoints (Oct 2026):** a local Ollama/vLLM
+  server (no limits at all), Mistral's Experiment tier (~1B tokens/month, no
+  card), GitHub Models (rate-limited, GitHub token). Cerebras and SambaNova
+  now require a card and a trial credit rather than a standing free tier, and
+  Together offers trial credit only — so they are not listed as free here.
 
 ## API key management (BYOK)
 
@@ -74,8 +104,11 @@ Honesty rules baked into the app:
   you can correct them when a provider changes terms;
 - if a model is not in the registry, it falls back to **PAID** (conservative).
 
-Built-in examples: Gemini and Groq models are labelled **FREE TIER**;
-OpenRouter and OpenAI-compatible models are labelled **PAID**.
+Built-in examples: Gemini, Groq and the OpenAI-compatible Mistral row are
+labelled **FREE TIER** (a free quota, with paid usage above it); OpenRouter's
+`:free` routes are labelled **FREE** (zero-priced tokens, published caps,
+expiring ids); OpenRouter's paid routes and the OpenAI-compatible GPT rows
+are **PAID**.
 
 ## Quotas and rate limits
 
