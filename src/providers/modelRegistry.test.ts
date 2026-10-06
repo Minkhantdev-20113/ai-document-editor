@@ -68,10 +68,10 @@ describe('model registry facts', () => {
   });
 
   it('derives the enabled flag from the provider enabled-model list', () => {
-    expect(modelSpecs('deepseek').every((spec) => spec.enabled)).toBe(true);
-    const filtered = modelSpecs('deepseek', { enabledModels: ['deepseek-flash'] });
-    expect(filtered.find((spec) => spec.modelId === 'deepseek-flash')?.enabled).toBe(true);
-    expect(filtered.find((spec) => spec.modelId === 'deepseek-v4-pro')?.enabled).toBe(false);
+    expect(modelSpecs('groq').every((spec) => spec.enabled)).toBe(true);
+    const filtered = modelSpecs('groq', { enabledModels: ['openai/gpt-oss-20b'] });
+    expect(filtered.find((spec) => spec.modelId === 'openai/gpt-oss-20b')?.enabled).toBe(true);
+    expect(filtered.find((spec) => spec.modelId === 'openai/gpt-oss-120b')?.enabled).toBe(false);
   });
 });
 
@@ -150,7 +150,7 @@ describe('catalog overlay validation', () => {
     expect(oss20.source).toBe('catalog_update');
 
     // Models without a patch stay built-in.
-    const pro = requireModelSpec('deepseek', 'deepseek-v4-pro', { overlay });
+    const pro = requireModelSpec('groq', 'openai/gpt-oss-120b', { overlay });
     expect(pro.source).toBe('builtin');
   });
 

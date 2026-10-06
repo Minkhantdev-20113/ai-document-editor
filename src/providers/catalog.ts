@@ -6,6 +6,12 @@ import type { ProviderDescriptor, ProviderId } from './types';
  * Policies are intentionally written as guidance, not guarantees - limits are
  * provider, account and model dependent, and a second API key never multiplies
  * a per-account quota.
+ *
+ * Provider support is deliberately short: DeepSeek was removed in 0.6.0
+ * because it has no free tier, and this app only offers providers a user can
+ * start with without paying. Re-adding one means updating `PROVIDER_IDS`
+ * (types.ts), this catalog, `defaultBaseUrl`, `MODEL_META` (modelRegistry.ts)
+ * and the docs - `providerCleanup` deletes stored state of anything else.
  */
 export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderDescriptor>> = {
   gemini: {
@@ -82,28 +88,6 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderDescriptor>> 
     },
     capabilities: { chat: true, vision: true, jsonMode: false, streaming: true },
   },
-  deepseek: {
-    id: 'deepseek',
-    label: 'DeepSeek',
-    docsUrl: 'https://api-docs.deepseek.com/',
-    keyUrl: 'https://platform.deepseek.com/api_keys',
-    keyPattern: /^sk-[0-9a-f]{32,}$/,
-    requiresBaseUrl: false,
-    models: [
-      // The `deepseek-chat` / `deepseek-reasoner` aliases were retired on
-      // 2026-07-24; current primary ids are `deepseek-flash` (V4.1 Flash) and
-      // `deepseek-v4-pro` (both 1M context).
-      { id: 'deepseek-flash', label: 'DeepSeek V4.1 Flash', contextWindow: 1_048_576, maxOutputTokens: 65_536, recommended: true },
-      { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', contextWindow: 1_048_576, maxOutputTokens: 65_536 },
-    ],
-    rateLimit: {
-      basis: 'per-account',
-      requestsPerMinute: 60,
-      notes:
-        'DeepSeek enforces account-level concurrency and rate limits; off-peak pricing does not change the limit.',
-    },
-    capabilities: { chat: true, vision: false, jsonMode: true, streaming: true },
-  },
   openai_compatible: {
     id: 'openai_compatible',
     label: 'OpenAI-compatible',
@@ -134,8 +118,6 @@ export function defaultBaseUrl(providerId: ProviderId): string | null {
       return 'https://api.groq.com/openai/v1';
     case 'openrouter':
       return 'https://openrouter.ai/api/v1';
-    case 'deepseek':
-      return 'https://api.deepseek.com/v1';
     case 'openai_compatible':
       return null;
   }

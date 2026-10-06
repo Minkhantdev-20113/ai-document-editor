@@ -36,7 +36,9 @@ function defaultConfig(providerId: ProviderId): ProviderConfig {
 class ProviderConfigService {
   async list(): Promise<ProviderConfig[]> {
     const configs = await providerConfigsRepo.getAll();
-    return configs.sort((a, b) => a.label.localeCompare(b.label));
+    // Bundles are merged as-is, so a hand-edited row may lack `label`; sorting
+    // must not take the whole page down for that.
+    return configs.sort((a, b) => String(a.label ?? '').localeCompare(String(b.label ?? '')));
   }
 
   async get(providerId: ProviderId): Promise<ProviderConfig | undefined> {
@@ -57,8 +59,8 @@ class ProviderConfigService {
    * Migrates a stored default model that the provider no longer serves.
    *
    * Providers retire model ids (Google shut down `gemini-2.0-flash` on
-   * 2026-06-01, OpenRouter dropped `google/gemini-2.0-flash-001`, Groq and
-   * DeepSeek did the same to their llama/chat ids) while a user's saved
+   * 2026-06-01, OpenRouter dropped `google/gemini-2.0-flash-001`, Groq did the
+   * same to its llama/chat ids) while a user's saved
    * config keeps pointing at them - which turned every translation into a
    * 404 that failed the whole job. The config is rewritten to the provider's
    * current model once, silently from the user's point of view.

@@ -3,7 +3,7 @@ import { AppError, toAppError } from '../core/errors/appError';
 import { formatDateTime } from '../core/utils/time';
 import type { ApiKeyMetadata } from '../db/entities';
 import { getProviderDescriptor, listProviderDescriptors, looksLikeKey } from '../providers/registry';
-import type { ProviderId } from '../providers/types';
+import { isProviderId, type ProviderId } from '../providers/types';
 import { apiKeyService } from '../services/apiKeyService';
 import { keyVault, type VaultStatus } from '../security/keyVault';
 import { useAsyncData, useCollection } from '../hooks/useAsyncData';
@@ -25,6 +25,18 @@ const PROVIDER_OPTIONS = listProviderDescriptors().map((descriptor) => ({
   value: descriptor.id,
   label: descriptor.label,
 }));
+
+/**
+ * Provider label for a *stored* row.
+ *
+ * Rows written before a provider was dropped (DeepSeek in 0.6.0) have no
+ * descriptor any more. Bootstrap removes them, but the table must not throw
+ * while that is still pending, nor after an older data bundle reintroduces
+ * one - so an unknown provider shows its raw id instead of crashing the page.
+ */
+function keyProviderLabel(providerId: string): string {
+  return isProviderId(providerId) ? getProviderDescriptor(providerId).label : providerId;
+}
 
 /** API keys: encrypted locally, verified on demand, never rendered in full. */
 export function ApiKeysPage() {
@@ -314,7 +326,7 @@ export function ApiKeysPage() {
                 {(keys ?? []).map((key) => (
                   <tr key={key.id}>
                     <td className="truncate">{key.label}</td>
-                    <td>{getProviderDescriptor(key.providerId).label}</td>
+                    <td>{keyProviderLabel(key.providerId)}</td>
                     <td className="mono text-xs">{key.hint}</td>
                     <td><ApiKeyStatusBadge status={key.status} /></td>
                     <td className="text-xs nowrap">

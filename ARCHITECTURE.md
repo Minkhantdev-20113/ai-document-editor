@@ -298,13 +298,17 @@ providers/types.ts         ProviderDescriptor, RateLimitPolicy, capability flags
 providers/transport.ts     header-only auth (key never appended to a URL), timeouts
 providers/verify.ts        "is this key valid?" check per provider
 providers/classify.ts      shared error taxonomy (429/quota/auth/model/timeout/…)
-providers/adapters/        gemini.ts, openaiCompatible.ts (Groq/OpenRouter/DeepSeek)
+providers/adapters/        gemini.ts, openaiCompatible.ts (Groq/OpenRouter)
 providers/aiProvider.ts    the common AIProvider contract + factory seams
 providers/modelRegistry.ts per-model facts, pricing, overlay validation
 ```
 
-- Gemini is primary; Groq, OpenRouter and DeepSeek reuse the OpenAI-compatible
-  adapter with their own catalog entries, endpoints and policies.
+- Gemini is primary; Groq, OpenRouter and the self-hosted OpenAI-compatible
+  endpoint reuse the same adapter with their own catalog entries, endpoints
+  and policies. The catalog lists only providers this build will use - DeepSeek
+  was removed in 0.6.0 because it has no free tier - and
+  `services/providerCleanup.ts` deletes stored config/keys of anything else at
+  bootstrap (and after a data import).
 - Every adapter implements the same contract: `validateKey · listModels ·
   getCapabilities · estimateTokens · generate · translate · getUsage ·
   getRateLimitState · classifyError`. All errors flow through

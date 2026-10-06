@@ -34,6 +34,7 @@ each, and an honest list of what this build does not do.
 | 429s shortly after starting | declared RPM/TPM above your plan | lower the per-provider rate-limit overrides on the Providers page; the pool then stays under the limit |
 | Repeated failures of one model only | provider-side outage or model retired | switch the model (model catalog is editable) or let failover pick the next candidate |
 | OpenAI-compatible endpoint unreachable | missing/incorrect base URL, CORS, or the endpoint blocks browsers | set the exact base URL, check the endpoint allows browser calls, verify with the key test |
+| A stored DeepSeek key/config disappeared | DeepSeek support was removed in v0.6.0 (no free tier), so nothing can select it any more | none needed — the config, key metadata and ciphertext are deleted on load; usage history stays on the Usage page |
 
 Rate-limit policies in the catalog are **guidance, not guarantees** — confirm
 current numbers with the provider (see [API_PROVIDERS.md](./API_PROVIDERS.md)).

@@ -122,7 +122,7 @@ function readNumber(headers: Record<string, string> | undefined, name: string): 
 /**
  * Extracts rate-limit signals from response headers.
  *
- * Recognised (lower-cased) names cover OpenAI/Groq/DeepSeek style
+ * Recognised (lower-cased) names cover OpenAI/Groq style
  * `x-ratelimit-*`, OpenRouter, and Google's `x-ratelimit-reset-*` durations.
  * Unknown headers are ignored - hints are best-effort by design.
  */

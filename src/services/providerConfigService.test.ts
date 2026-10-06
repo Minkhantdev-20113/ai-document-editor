@@ -34,10 +34,10 @@ describe('provider config save', () => {
   });
 
   it('applies explicit enabled-model patches verbatim otherwise', async () => {
-    const saved = await providerConfigService.save('deepseek', {
-      enabledModels: ['deepseek-v4-pro', 'deepseek-flash'],
+    const saved = await providerConfigService.save('groq', {
+      enabledModels: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
     });
-    expect(saved.enabledModels).toEqual(['deepseek-v4-pro', 'deepseek-flash']);
+    expect(saved.enabledModels).toEqual(['openai/gpt-oss-120b', 'openai/gpt-oss-20b']);
   });
 
   it('rejects non-https base URLs', async () => {

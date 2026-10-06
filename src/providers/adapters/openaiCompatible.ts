@@ -26,7 +26,7 @@ interface OpenAiResponse {
 
 /**
  * Adapter factory for every OpenAI-compatible chat/completions endpoint
- * (Groq, OpenRouter, DeepSeek, self-hosted servers).
+ * (Groq, OpenRouter, self-hosted servers).
  */
 export function createOpenAiCompatibleAdapter(
   descriptor: ProviderDescriptor,

@@ -22,6 +22,7 @@ import {
   translationUnitsRepo,
   usageRepo,
 } from '../db/repositories';
+import { removeUnsupportedProviderState } from './providerCleanup';
 
 /**
  * Stores included in an export. Secrets are deliberately excluded, and the
@@ -134,6 +135,11 @@ class DataPortabilityService {
       await repoFor(store).putMany(values as never);
       records += values.length;
     }
+
+    // An older bundle can carry provider rows this build dropped (DeepSeek in
+    // 0.6.0): write first so the reported record count is honest about the
+    // file, then drop what the app cannot use any more.
+    await removeUnsupportedProviderState();
 
     logger.info('Data import completed', { records });
     appEvents.emit('projects:changed', {});

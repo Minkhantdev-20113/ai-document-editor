@@ -66,9 +66,11 @@ All commands are expected to be clean: **0 type errors, 0 lint errors,
   interrupted by a refresh are recovered to the queue automatically.
 - **Web Worker infrastructure** — a request/response RPC client plus real
   worker sessions, so heavy document work never blocks the UI.
-- **Provider adapters** — Gemini (primary), Groq, OpenRouter, DeepSeek, and a
-  generic OpenAI-compatible adapter, described by data (catalog + registry),
-  not by `if` statements spread through the UI.
+- **Provider adapters** — Gemini (primary), Groq, OpenRouter, and a generic
+  OpenAI-compatible adapter, described by data (catalog + registry), not by
+  `if` statements spread through the UI. DeepSeek is deliberately not offered:
+  it has no free tier, and this app only lists providers you can start with
+  without paying.
 - **Local key vault** — AES-GCM via WebCrypto; PBKDF2 (310k iterations) in
   passphrase mode or a device key by default. Raw keys are never logged,
   never written into error messages, and never sent to Google Sheets.
@@ -111,7 +113,7 @@ All commands are expected to be clean: **0 type errors, 0 lint errors,
 ## What Phase 3 provides
 
 - **One provider contract** — every adapter (Gemini, Groq, OpenRouter,
-  DeepSeek, OpenAI-compatible) exposes the same interface: `validateKey`,
+  OpenAI-compatible) exposes the same interface: `validateKey`,
   `listModels`, `getCapabilities`, `estimateTokens`, `generate`,
   `translate`, `getUsage`, `getRateLimitState`, `classifyError`.
 - **Typed provider errors** — 429, quota exceeded, insufficient quota, auth,

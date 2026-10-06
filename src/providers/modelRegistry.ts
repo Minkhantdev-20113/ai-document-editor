@@ -100,8 +100,6 @@ const MODEL_META: Readonly<Record<string, ModelMeta>> = {
   'openrouter/openai/gpt-4o-mini': { pricing: 'paid', quality: 'medium', speed: 'fast', image: true, vision: true },
   'openrouter/anthropic/claude-sonnet-5.5': { pricing: 'paid', quality: 'high', speed: 'medium' },
   'openrouter/google/gemini-3.5-flash': { pricing: 'paid', quality: 'medium', speed: 'fast', image: true, vision: true },
-  'deepseek/deepseek-flash': { pricing: 'paid', quality: 'medium', speed: 'fast' },
-  'deepseek/deepseek-v4-pro': { pricing: 'paid', quality: 'high', speed: 'medium' },
   'openai_compatible/gpt-4o-mini': { pricing: 'paid', quality: 'medium', speed: 'fast' },
   'openai_compatible/gpt-4o': { pricing: 'paid', quality: 'high', speed: 'medium' },
 };

@@ -54,6 +54,18 @@ definitive reason keeps its honest `needs_ocr` status.
   (the OCR retry path made this reachable); `applyPageAnalysis` now replaces
   the previous page's contribution instead of adding it again.
 
+### Removed
+
+- **DeepSeek provider support** — it has no free tier, so it cannot be tried
+  without paying, which is not what this app offers. Dropped from
+  `PROVIDER_IDS`, the catalog, the model registry, the Providers/API Keys
+  pages and the docs. Stored state of any provider this build no longer
+  supports (config row, key metadata, encrypted secret, key runtime) is now
+  deleted by `services/providerCleanup.ts` at bootstrap and after a data
+  import, and an API-key row whose provider is gone renders its raw id instead
+  of throwing. Usage history and `translationUnits.provider` are kept: they
+  record what was spent, not support for a provider.
+
 ## [0.5.0] — Phase 5 (2026-10-06)
 
 Production document export: a worker-rendered, structure-preserving PDF plus

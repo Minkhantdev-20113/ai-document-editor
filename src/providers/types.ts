@@ -1,6 +1,6 @@
 import type { ClassifiedProviderError } from './classify';
 
-export const PROVIDER_IDS = ['gemini', 'groq', 'openrouter', 'deepseek', 'openai_compatible'] as const;
+export const PROVIDER_IDS = ['gemini', 'groq', 'openrouter', 'openai_compatible'] as const;
 
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 

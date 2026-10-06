@@ -12,8 +12,12 @@ third-party tier is free forever.
 | Google Gemini (primary) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | `AIza…` | `https://generativelanguage.googleapis.com/v1beta` | per-key | 15 RPM |
 | Groq | [console.groq.com/keys](https://console.groq.com/keys) | `gsk_…` | `https://api.groq.com/openai/v1` | per-key | 30 RPM |
 | OpenRouter | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) | `sk-or-v1-…` | `https://openrouter.ai/api/v1` | per-key | 20 RPM |
-| DeepSeek | [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) | `sk-…` | `https://api.deepseek.com/v1` | per-account | 60 RPM |
 | OpenAI-compatible | your endpoint | your format | **required** | set by endpoint | none assumed |
+
+**Why DeepSeek is not on this list:** it has no free tier, so there is no way
+to try it without paying. It was removed in v0.6.0; a stored DeepSeek config or
+key is deleted at the next load (usage history and the provider recorded on
+already-translated units are kept - they record what happened).
 
 Policies in `providers/catalog.ts` are **guidance, not guarantees**: limits
 are provider-, account- and model-dependent and change without notice.
@@ -59,7 +63,7 @@ Labels are shown as badges and mean exactly this:
 | --- | --- |
 | **FREE** | the provider documents no cost for this model (e.g. some `:free` routes) |
 | **FREE TIER** | the provider offers a free quota, *with paid usage above it* — rate/volume limits apply |
-| **PAID** | paid usage is the normal path (e.g. OpenRouter, DeepSeek, OpenAI-compatible) |
+| **PAID** | paid usage is the normal path (e.g. OpenRouter, OpenAI-compatible) |
 
 Honesty rules baked into the app:
 
@@ -70,9 +74,8 @@ Honesty rules baked into the app:
   you can correct them when a provider changes terms;
 - if a model is not in the registry, it falls back to **PAID** (conservative).
 
-Built-in examples: Gemini 2.5 Pro/Flash and 2.0 Flash, and Groq's Llama 3.3
-70B / 3.1 8B are labelled **FREE TIER**; OpenRouter, DeepSeek and
-OpenAI-compatible models are labelled **PAID**.
+Built-in examples: Gemini and Groq models are labelled **FREE TIER**;
+OpenRouter and OpenAI-compatible models are labelled **PAID**.
 
 ## Quotas and rate limits
 

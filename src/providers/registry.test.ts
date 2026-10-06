@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { looksLikeKey } from './registry';
+import { isProviderId } from './types';
+import { listProviderDescriptors, looksLikeKey } from './registry';
 
 // Google AI Studio issues Auth keys (`AQ.…`) instead of Standard keys
 // (`AIza…`) since mid-2026; both must pass the client-side format check.
@@ -29,6 +30,20 @@ describe('looksLikeKey', () => {
   it('keeps the other providers on their own shapes', () => {
     expect(looksLikeKey('openrouter', `sk-or-v1-${'a'.repeat(32)}`)).toBe(true);
     expect(looksLikeKey('groq', `gsk_${'a'.repeat(32)}`)).toBe(true);
-    expect(looksLikeKey('deepseek', `sk-${'a'.repeat(32)}`)).toBe(true);
+    // A self-hosted endpoint declares no format, so only length is checked.
+    expect(looksLikeKey('openai_compatible', 'a'.repeat(16))).toBe(true);
+    expect(looksLikeKey('openai_compatible', 'short')).toBe(false);
+  });
+});
+
+describe('provider list', () => {
+  it('offers exactly the supported providers (DeepSeek was dropped: no free tier)', () => {
+    expect(listProviderDescriptors().map((descriptor) => descriptor.id)).toEqual([
+      'gemini',
+      'groq',
+      'openrouter',
+      'openai_compatible',
+    ]);
+    expect(isProviderId('deepseek')).toBe(false);
   });
 });

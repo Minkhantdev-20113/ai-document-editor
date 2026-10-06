@@ -33,6 +33,21 @@ async function registerOcrEngine(): Promise<void> {
   }
 }
 
+/**
+ * Deletes stored config/keys of providers this build no longer supports
+ * (DeepSeek was dropped in 0.6.0 - no free tier). Runs before jobs start so a
+ * translation run and the API keys table never see rows for a provider that
+ * cannot be used any more.
+ */
+async function cleanupUnsupportedProviders(): Promise<void> {
+  try {
+    const { removeUnsupportedProviderState } = await import('./services/providerCleanup');
+    await removeUnsupportedProviderState();
+  } catch (error) {
+    logger.warn('Unsupported-provider cleanup skipped', { error: String(error) });
+  }
+}
+
 function reportGlobalError(event: ErrorEvent): void {
   logger.errorWith(event.error ?? event.message, 'Uncaught error', {
     filename: event.filename ?? null,
@@ -54,6 +69,7 @@ async function bootstrapApplication(): Promise<void> {
     const settings = await settingsService.load();
     keyVault.setAutoLock(settings.vaultAutoLockMs);
     await keyVault.ready();
+    await cleanupUnsupportedProviders();
     await bootstrapJobs();
   } catch (error) {
     logger.errorWith(error, 'Application bootstrap failed');

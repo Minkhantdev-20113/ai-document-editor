@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createProgress } from '../domain/types';
 import type { ExportArtifact, Project } from '../db/entities';
-import { exportArtifactsRepo, projectsRepo } from '../db/repositories';
+import { exportArtifactsRepo, projectsRepo, providerConfigsRepo, apiKeysRepo } from '../db/repositories';
 import { dataPortabilityService } from './dataPortabilityService';
 
 const T0 = 1_700_000_000_000;
@@ -86,6 +86,69 @@ describe('dataPortability (backup without secrets or produced files)', () => {
     expect(await exportArtifactsRepo.has('job_export_1')).toBe(false);
   });
 
+  it('drops provider rows of a provider this build no longer supports', async () => {
+    // An older bundle still carries DeepSeek config/key rows (dropped in
+    // 0.6.0 - no free tier): they must not survive the import, or the API
+    // keys table and the enabled-provider count would show a provider that
+    // cannot be used any more.
+    await providerConfigsRepo.clear();
+    await apiKeysRepo.clear();
+    const raw = JSON.stringify({
+      format: 'adt-export',
+      version: 1,
+      appVersion: '0.5.0',
+      exportedAt: T0,
+      stores: {
+        providerConfigs: [
+          {
+            id: 'pcfg_gemini',
+            providerId: 'gemini',
+            label: 'Google Gemini',
+            enabled: true,
+            baseUrl: null,
+            defaultModel: 'gemini-3.8-flash',
+            enabledModels: ['gemini-3.8-flash'],
+            rateLimitOverride: null,
+            createdAt: T0,
+            updatedAt: T0,
+          },
+          {
+            id: 'pcfg_deepseek',
+            providerId: 'deepseek',
+            label: 'DeepSeek',
+            enabled: true,
+            baseUrl: null,
+            defaultModel: 'deepseek-flash',
+            enabledModels: ['deepseek-flash'],
+            rateLimitOverride: null,
+            createdAt: T0,
+            updatedAt: T0,
+          },
+        ],
+        apiKeyMetadata: [
+          {
+            id: 'key_deepseek',
+            providerId: 'deepseek',
+            label: 'DeepSeek key',
+            hint: 'sk-••••1234',
+            status: 'valid',
+            lastVerifiedAt: T0,
+            lastUsedAt: T0,
+            createdAt: T0,
+            updatedAt: T0,
+          },
+        ],
+      },
+    });
+
+    const { records } = await dataPortabilityService.importBundle(raw);
+
+    // The count describes the file, not what survives the cleanup.
+    expect(records).toBe(3);
+    expect(await providerConfigsRepo.get('pcfg_deepseek')).toBeUndefined();
+    expect(await apiKeysRepo.get('key_deepseek')).toBeUndefined();
+    expect(await providerConfigsRepo.get('pcfg_gemini')).toBeDefined();
+  });
   it('rejects a malformed bundle before writing anything', async () => {
     await expect(dataPortabilityService.importBundle('{"nope":true}')).rejects.toMatchObject({
       code: 'import_invalid',
