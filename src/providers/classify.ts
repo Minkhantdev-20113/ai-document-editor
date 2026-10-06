@@ -56,7 +56,7 @@ export interface ClassifyInput {
 }
 
 const QUOTA_PATTERN =
-  /insufficient[_ ]quota|exceeded your (current )?quota|quota[^.\n]{0,40}(exhaust|exceed)|billing|no credit|credit balance|insufficient balance|payment|plan and billing|per[- ]day|daily (limit|quota)|requests per day|tokens per day|resource has been exhausted/i;
+  /insufficient[_ ]quota|exceeded your (current )?quota|quota[^.\n]{0,40}(exhaust|exceed)|billing|no credit|insufficient[_ ]credit|credit balance|insufficient balance|payment|plan and billing|per[- ]day|daily (limit|quota)|requests per day|tokens per day|resource has been exhausted/i;
 
 const RATE_WINDOW_PATTERN = /per[- ]minute|per[- ]hour|\brpm\b|\btpm\b|too many requests|rate limit|first then wait/i;
 
@@ -219,6 +219,13 @@ export function classifyProviderError(input: ClassifyInput): ClassifiedProviderE
 
   if (status === 401 || status === 403 || /UNAUTHENTICATED|PERMISSION_DENIED/.test(providerStatus ?? '')) {
     errorClass = 'auth';
+  } else if (status === 402) {
+    // 402 Payment Required (OpenRouter's `insufficient_credit`, and the
+    // equivalent "add credits" walls elsewhere) is a billing state, not a
+    // rejection: treat it as quota so the run fails over to the next
+    // provider - or pauses with a billing message - instead of marking the
+    // batch non-retryable and failing the job.
+    errorClass = 'quota_exceeded';
   } else if (status === 404 && INVALID_MODEL_PATTERN.test(combined) === false) {
     // A bare 404 from a chat endpoint normally means the model route is unknown.
     errorClass = 'invalid_model';

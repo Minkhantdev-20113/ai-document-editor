@@ -22,7 +22,7 @@ function makeUnit(index: number, overrides: Partial<TranslationUnit> = {}): Tran
     status: 'translated',
     retryCount: 0,
     provider: 'gemini',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     keyId: null,
     estimatedTokens: null,
     actualTokens: null,

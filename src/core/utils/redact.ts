@@ -8,6 +8,9 @@
 
 const SECRET_PATTERNS: readonly RegExp[] = [
   /\bAIza[0-9A-Za-z_-]{10,}\b/g,
+  // Google Auth keys (issued instead of `AIza…` since mid-2026). No trailing
+  // `\b`: these keys may legitimately end in `-`.
+  /\bAQ\.[0-9A-Za-z._-]{16,}/g,
   /\bsk-[0-9A-Za-z_-]{16,}\b/g,
   /\bgsk_[0-9A-Za-z]{16,}\b/g,
   /\bsk-or-v1-[0-9a-f]{16,}\b/g,

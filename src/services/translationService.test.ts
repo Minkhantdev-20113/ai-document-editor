@@ -203,7 +203,7 @@ beforeEach(async () => {
 describe('translation engine (Phase 3)', () => {
   it('translates every pending unit and records provider-reported usage', async () => {
     await translationUnitsRepo.putMany([makeUnit(1), makeUnit(2), makeUnit(3)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const received: string[][] = [];
@@ -221,7 +221,7 @@ describe('translation engine (Phase 3)', () => {
     expect(outcome.skipped).toBe(0);
     expect(outcome.failed).toBe(0);
     expect(outcome.providerId).toBe('gemini');
-    expect(outcome.model).toBe('gemini-2.5-flash');
+    expect(outcome.model).toBe('gemini-3.8-flash');
     expect(received.flat()).toEqual(['u_1', 'u_2', 'u_3']);
 
     const units = await unitsOf();
@@ -242,7 +242,7 @@ describe('translation engine (Phase 3)', () => {
 
   it('sends the project glossary with every batch call (Phase 4)', async () => {
     await translationUnitsRepo.putMany([makeUnit(1), makeUnit(2)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
     await glossaryEntriesRepo.put({
       id: 'glo_1',
@@ -281,7 +281,7 @@ describe('translation engine (Phase 3)', () => {
 
   it('omits the glossary field entirely when the project has no rules', async () => {
     await translationUnitsRepo.putMany([makeUnit(1)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const calls: TranslationCall[] = [];
@@ -310,7 +310,7 @@ describe('translation engine (Phase 3)', () => {
       }),
       makeUnit(2),
     ]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const received: string[][] = [];
@@ -347,7 +347,7 @@ describe('translation engine (Phase 3)', () => {
       makeUnit(2, { sourceText: boilerplate }),
       makeUnit(3, { sourceText: 'A completely different sentence about the weather in Mandalay.' }),
     ]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const calls: TranslationCall[] = [];
@@ -391,7 +391,7 @@ describe('translation engine (Phase 3)', () => {
       }),
       makeUnit(2, { sourceText: boilerplate }),
     ]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const calls: TranslationCall[] = [];
@@ -416,7 +416,7 @@ describe('translation engine (Phase 3)', () => {
   });
 
   it('applies the strategy temperature to every request (Phase 4)', async () => {
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
     const temperatures: Array<number | undefined> = [];
     const { service } = makeService({
@@ -455,7 +455,7 @@ describe('translation engine (Phase 3)', () => {
 
   it('runs validation after a completed run and persists findings (Phase 4)', async () => {
     await translationUnitsRepo.putMany([makeUnit(1), makeUnit(2)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     // A model that drops every number and repeats itself - exactly what
@@ -482,7 +482,7 @@ describe('translation engine (Phase 3)', () => {
 
   it('records the provider text as the AI suggestion (Phase 4)', async () => {
     await translationUnitsRepo.putMany([makeUnit(1)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
     const { service } = makeService({ gemini: async (call) => successResult(call) });
 
@@ -506,7 +506,7 @@ describe('translation engine (Phase 3)', () => {
         sourceText: 'The ကူးညီ converter handles both English and မြန်မာ text.',
       }),
     ]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
     // Fake model that echoes every token through - preservation by design.
     const { service } = makeService({
@@ -536,7 +536,7 @@ describe('translation engine (Phase 3)', () => {
 
   it('waits for connectivity after an offline error, then retries (Phase 4)', async () => {
     await translationUnitsRepo.putMany([makeUnit(1)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const onlineWaits: number[] = [];
@@ -572,7 +572,7 @@ describe('translation engine (Phase 3)', () => {
 
   it('reports page/unit progress with provider, model and key id (Phase 4)', async () => {
     await translationUnitsRepo.putMany([makeUnit(1), makeUnit(2)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const events: TranslationProgress[] = [];
@@ -590,7 +590,7 @@ describe('translation engine (Phase 3)', () => {
     expect(last?.batchIndex).toBe(1);
     expect(last?.batchCount).toBe(1);
     expect(last?.providerId).toBe('gemini');
-    expect(last?.model).toBe('gemini-2.5-flash');
+    expect(last?.model).toBe('gemini-3.8-flash');
     // The key id (masked by the UI) - never the key itself.
     expect(last?.keyId).toBe('k_pool');
     // All units share one page here: 1/1 complete.
@@ -604,7 +604,7 @@ describe('translation engine (Phase 3)', () => {
       makeUnit(2, { status: 'translated', translatedText: 'ယခင်ဘာသာပြန်ပြီး' }),
       makeUnit(3),
     ]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const received: string[][] = [];
@@ -625,7 +625,7 @@ describe('translation engine (Phase 3)', () => {
 
   it('retries a 429 with jittered backoff - never a tight loop', async () => {
     await translationUnitsRepo.putMany([makeUnit(1)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     let attempts = 0;
@@ -654,7 +654,7 @@ describe('translation engine (Phase 3)', () => {
 
   it('recovers from timeout and network failures on the same provider', async () => {
     await translationUnitsRepo.putMany([makeUnit(1)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const failures = [
@@ -680,8 +680,8 @@ describe('translation engine (Phase 3)', () => {
 
   it('fails over to the next provider when a key is rejected', async () => {
     await translationUnitsRepo.putMany([makeUnit(1), makeUnit(2)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
-    await enableProvider('groq', 'llama-3.3-70b-versatile');
+    await enableProvider('gemini', 'gemini-3.8-flash');
+    await enableProvider('groq', 'openai/gpt-oss-120b');
     await seedKey('k_gemini', 'gemini');
     await seedKey('k_groq', 'groq');
 
@@ -710,7 +710,7 @@ describe('translation engine (Phase 3)', () => {
 
   it('fails units with their error when nothing can serve them, then resumes', async () => {
     await translationUnitsRepo.putMany([makeUnit(1), makeUnit(2), makeUnit(3)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const rejecting = makeService({
@@ -743,7 +743,7 @@ describe('translation engine (Phase 3)', () => {
   it('a refresh mid-translation keeps completed units and resumes the rest', async () => {
     const many = Array.from({ length: 40 }, (_, index) => makeUnit(index + 1));
     await translationUnitsRepo.putMany(many);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     // 40 units exceed the 32-unit batch cap -> two batches, so the first run
@@ -795,8 +795,8 @@ describe('translation engine (Phase 3)', () => {
 
   it('pauses when every candidate provider reports quota exhausted', async () => {
     await translationUnitsRepo.putMany([makeUnit(1), makeUnit(2)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
-    await enableProvider('groq', 'llama-3.3-70b-versatile');
+    await enableProvider('gemini', 'gemini-3.8-flash');
+    await enableProvider('groq', 'openai/gpt-oss-120b');
     await seedKey('k_gemini', 'gemini');
     await seedKey('k_groq', 'groq');
 
@@ -822,8 +822,8 @@ describe('translation engine (Phase 3)', () => {
 
   it('stays paused while every key is quota-cooled (resume does not fail)', async () => {
     await translationUnitsRepo.putMany([makeUnit(1)]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
-    await enableProvider('groq', 'llama-3.3-70b-versatile');
+    await enableProvider('gemini', 'gemini-3.8-flash');
+    await enableProvider('groq', 'openai/gpt-oss-120b');
     await seedKey('k_gemini', 'gemini');
     await seedKey('k_groq', 'groq');
 
@@ -873,10 +873,45 @@ describe('translation engine (Phase 3)', () => {
     expect(providerCalls).toBe(0);
   });
 
+  it('stops after the first batch when the configured model is unavailable', async () => {
+    await translationUnitsRepo.putMany(Array.from({ length: 40 }, (_, index) => makeUnit(index + 1)));
+    await enableProvider('gemini', 'gemini-3.8-flash');
+    await seedKey('k_gemini', 'gemini');
+
+    let providerCalls = 0;
+    const { service } = makeService({
+      gemini: async () => {
+        providerCalls += 1;
+        throw new AppError('No endpoints found for the requested model.', {
+          code: 'provider_invalid_model',
+          retryable: false,
+        });
+      },
+    });
+
+    const outcome = await service.translateDocument({ documentId: 'doc_1' });
+
+    expect(outcome.status).toBe('failed');
+    // 40 units plan as two batches (32 + 8). The configuration error must not
+    // be repeated on every batch: the old behaviour issued one doomed request
+    // after another until the whole document was marked failed.
+    expect(providerCalls).toBe(1);
+    expect(outcome.error?.code).toBe('provider_invalid_model');
+    // The message names the model and where to change it.
+    expect(outcome.error?.message).toContain('gemini-3.8-flash');
+    expect(outcome.error?.message).toContain('Google Gemini');
+
+    const units = await unitsOf();
+    expect(units.filter((unit) => unit.status === 'failed')).toHaveLength(32);
+    // The batch that never ran stays pending, so fixing the model and
+    // re-running translates everything.
+    expect(units.filter((unit) => unit.status === 'pending')).toHaveLength(8);
+  });
+
   it('attempts oversized units alone and flags them instead of dropping them', async () => {
     const oversized = makeUnit(2, { sourceText: 'x'.repeat(45_000) });
     await translationUnitsRepo.putMany([makeUnit(1), oversized]);
-    await enableProvider('gemini', 'gemini-2.5-flash');
+    await enableProvider('gemini', 'gemini-3.8-flash');
     await seedKey('k_gemini', 'gemini');
 
     const batchSizes: number[] = [];

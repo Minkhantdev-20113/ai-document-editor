@@ -26,6 +26,18 @@ export function Modal({ open, title, description, onClose, children, footer, wid
   const t = useT();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
+  // Latest-value refs. Every call site passes an inline arrow for
+  // `onClose`/`onCancel`, so a plain `[open, onClose, blocked]` dependency
+  // re-ran this effect on every parent render - and each re-run moved focus
+  // out of whatever the user was typing into, forcing a click after every
+  // keystroke. Handlers are read through refs instead.
+  const onCloseRef = useRef(onClose);
+  const blockedRef = useRef(blocked);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    blockedRef.current = blocked;
+  }, [onClose, blocked]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -39,9 +51,9 @@ export function Modal({ open, title, description, onClose, children, footer, wid
     (firstFocusable ?? dialog)?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !blocked) {
+      if (event.key === 'Escape' && !blockedRef.current) {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab' || !dialog) return;
@@ -67,7 +79,9 @@ export function Modal({ open, title, description, onClose, children, footer, wid
       document.body.style.overflow = previousOverflow;
       restoreRef.current?.focus?.();
     };
-  }, [open, onClose, blocked]);
+    // Deliberately `[open]` only: focus setup/teardown must happen when the
+    // dialog appears or disappears, never on a parent re-render.
+  }, [open]);
 
   if (!open) return null;
 

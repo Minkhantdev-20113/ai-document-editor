@@ -13,13 +13,21 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderDescriptor>> 
     label: 'Google Gemini',
     docsUrl: 'https://ai.google.dev/gemini-api/docs',
     keyUrl: 'https://aistudio.google.com/apikey',
-    keyPrefix: 'AIza',
-    keyPattern: /^AIza[0-9A-Za-z_-]{20,}$/,
+    // Google issues two shapes: the legacy Standard key (`AIza…`) and the
+    // Auth key (`AQ.Ab…`) that AI Studio has issued exclusively since
+    // mid-2026. Rejecting the new shape made every freshly created key look
+    // "invalid" before a single request was sent.
+    keyPrefix: 'AIza / AQ.',
+    keyPattern: /^(?:AIza[0-9A-Za-z_-]{20,}|AQ\.[0-9A-Za-z._-]{16,})$/,
     requiresBaseUrl: false,
+    // Checked against ai.google.dev/gemini-api/docs/models (2026-10-01):
+    // `gemini-2.0-flash` was shut down on 2026-06-01, and Google now only
+    // serves the 2.5 line to accounts that used it before - a freshly issued
+    // key would fail on it. These three are stable and current.
     models: [
-      { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', contextWindow: 1_048_576, maxOutputTokens: 65_536, recommended: true },
-      { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', contextWindow: 1_048_576, maxOutputTokens: 65_536 },
-      { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', contextWindow: 1_048_576, maxOutputTokens: 8_192 },
+      { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', contextWindow: 1_048_576, maxOutputTokens: 65_536, recommended: true },
+      { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', contextWindow: 1_048_576, maxOutputTokens: 65_536 },
+      { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', contextWindow: 1_048_576, maxOutputTokens: 65_536 },
     ],
     rateLimit: {
       basis: 'per-key',
@@ -36,9 +44,12 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderDescriptor>> 
     keyUrl: 'https://console.groq.com/keys',
     keyPattern: /^gsk_[0-9A-Za-z]{20,}$/,
     requiresBaseUrl: false,
+    // Both `llama-3.3-70b-versatile` and `llama-3.1-8b-instant` were shut
+    // down on 2026-08-16 (Groq deprecation notice) and now return 404.
+    // These are Groq's own recommended replacements.
     models: [
-      { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile', contextWindow: 131_072, maxOutputTokens: 32_768, recommended: true },
-      { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant', contextWindow: 131_072, maxOutputTokens: 8_192 },
+      { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B', contextWindow: 131_072, maxOutputTokens: 65_536, recommended: true },
+      { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B', contextWindow: 131_072, maxOutputTokens: 65_536 },
     ],
     rateLimit: {
       basis: 'per-key',
@@ -55,10 +66,13 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderDescriptor>> 
     keyUrl: 'https://openrouter.ai/settings/keys',
     keyPattern: /^sk-or-v1-[0-9a-f]{32,}$/,
     requiresBaseUrl: false,
+    // `anthropic/claude-3.5-sonnet` and `google/gemini-2.0-flash-001` were
+    // removed from OpenRouter (404 "No endpoints found for the requested
+    // model"); ids below were re-checked against the live /api/v1/models list.
     models: [
       { id: 'openai/gpt-4o-mini', label: 'GPT-4o mini', contextWindow: 128_000, maxOutputTokens: 16_384, recommended: true },
-      { id: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet', contextWindow: 200_000, maxOutputTokens: 8_192 },
-      { id: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash', contextWindow: 1_048_576, maxOutputTokens: 8_192 },
+      { id: 'anthropic/claude-sonnet-5.5', label: 'Claude Sonnet 5.5', contextWindow: 1_000_000, maxOutputTokens: 64_000 },
+      { id: 'google/gemini-3.5-flash', label: 'Gemini 3.5 Flash', contextWindow: 1_048_576, maxOutputTokens: 65_536 },
     ],
     rateLimit: {
       basis: 'per-key',
@@ -76,8 +90,11 @@ export const PROVIDER_CATALOG: Readonly<Record<ProviderId, ProviderDescriptor>> 
     keyPattern: /^sk-[0-9a-f]{32,}$/,
     requiresBaseUrl: false,
     models: [
-      { id: 'deepseek-chat', label: 'DeepSeek Chat', contextWindow: 65_536, maxOutputTokens: 8_192, recommended: true },
-      { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner', contextWindow: 65_536, maxOutputTokens: 32_768 },
+      // The `deepseek-chat` / `deepseek-reasoner` aliases were retired on
+      // 2026-07-24; current primary ids are `deepseek-flash` (V4.1 Flash) and
+      // `deepseek-v4-pro` (both 1M context).
+      { id: 'deepseek-flash', label: 'DeepSeek V4.1 Flash', contextWindow: 1_048_576, maxOutputTokens: 65_536, recommended: true },
+      { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', contextWindow: 1_048_576, maxOutputTokens: 65_536 },
     ],
     rateLimit: {
       basis: 'per-account',

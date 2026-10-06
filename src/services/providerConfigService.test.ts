@@ -13,7 +13,7 @@ describe('provider config save', () => {
     const initiallyEnabled = created.enabledModels ?? [];
 
     // Pick a real model that is not in the enabled list yet.
-    const candidates = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+    const candidates = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'];
     const notEnabled = candidates.find((model) => !initiallyEnabled.includes(model));
     expect(notEnabled).toBeDefined();
 
@@ -35,14 +35,56 @@ describe('provider config save', () => {
 
   it('applies explicit enabled-model patches verbatim otherwise', async () => {
     const saved = await providerConfigService.save('deepseek', {
-      enabledModels: ['deepseek-chat', 'deepseek-reasoner'],
+      enabledModels: ['deepseek-v4-pro', 'deepseek-flash'],
     });
-    expect(saved.enabledModels).toEqual(['deepseek-chat', 'deepseek-reasoner']);
+    expect(saved.enabledModels).toEqual(['deepseek-v4-pro', 'deepseek-flash']);
   });
 
   it('rejects non-https base URLs', async () => {
     await expect(
       providerConfigService.save('openai_compatible', { baseUrl: 'http://insecure.example' }),
     ).rejects.toThrowError(/https/);
+  });
+});
+
+describe('provider config healing', () => {
+  it('replaces a stored default model the provider no longer serves', async () => {
+    // A config saved before OpenRouter retired `google/gemini-2.0-flash-001`
+    // (the 404 that used to fail whole translation jobs).
+    await providerConfigService.save('openrouter', {
+      enabled: true,
+      defaultModel: 'google/gemini-2.0-flash-001',
+      enabledModels: ['google/gemini-2.0-flash-001'],
+    });
+
+    const healed = await providerConfigService.ensure('openrouter');
+    expect(healed.defaultModel).toBe('openai/gpt-4o-mini');
+    // The replacement must be selectable too, or the key pool rejects it.
+    expect(healed.enabledModels).toContain('openai/gpt-4o-mini');
+    // ...and the rewrite is persisted, not just returned.
+    expect((await providerConfigService.get('openrouter'))?.defaultModel).toBe('openai/gpt-4o-mini');
+  });
+
+  it('keeps the rest of the enabled-model list when healing', async () => {
+    await providerConfigService.save('gemini', {
+      enabled: true,
+      defaultModel: 'gemini-2.0-flash',
+      enabledModels: ['gemini-2.0-flash', 'gemini-3.5-flash-lite'],
+    });
+    const healed = await providerConfigService.ensure('gemini');
+    expect(healed.defaultModel).toBe('gemini-3.8-flash');
+    // The user's other choices survive; only the retired default is replaced.
+    expect(healed.enabledModels).toEqual(['gemini-2.0-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash']);
+  });
+
+  it('leaves unknown models on a self-hosted OpenAI-compatible endpoint alone', async () => {
+    await providerConfigService.save('openai_compatible', {
+      enabled: true,
+      defaultModel: 'my-endpoint-model-v2',
+      enabledModels: ['my-endpoint-model-v2'],
+    });
+    const config = await providerConfigService.ensure('openai_compatible');
+    expect(config.defaultModel).toBe('my-endpoint-model-v2');
+    expect(config.enabledModels).toEqual(['my-endpoint-model-v2']);
   });
 });

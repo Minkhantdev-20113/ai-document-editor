@@ -52,7 +52,7 @@ beforeEach(async () => {
   // Providers ship disabled: selection tests enable the one they exercise.
   await providerConfigService.save('gemini', {
     enabled: true,
-    enabledModels: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'],
+    enabledModels: ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'],
   });
 });
 
@@ -63,7 +63,7 @@ describe('key pool selection', () => {
 
     const selection = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 500,
     });
 
@@ -83,7 +83,7 @@ describe('key pool selection', () => {
   it('reports no_candidates for a provider without keys', async () => {
     const selection = await service.select({
       providerId: 'groq',
-      model: 'llama-3.1-8b-instant',
+      model: 'openai/gpt-oss-20b',
       estimatedTokens: 100,
     });
     expect(selection.keyId).toBeNull();
@@ -102,7 +102,7 @@ describe('key pool selection', () => {
 
     const selection = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 100,
     });
     expect(selection.keyId).toBe('k_b');
@@ -116,7 +116,7 @@ describe('key pool selection', () => {
 
     const selection = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 100,
     });
     expect(selection.keyId).toBe('k_b');
@@ -124,7 +124,7 @@ describe('key pool selection', () => {
     await service.setEnabled('k_b', false);
     const empty = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 100,
     });
     expect(empty.keyId).toBeNull();
@@ -141,7 +141,7 @@ describe('key pool selection', () => {
 
     const selection = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 100,
     });
     expect(selection.keyId).toBe('k_ok');
@@ -164,7 +164,7 @@ describe('429 and cooldown handling', () => {
 
     const during = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 100,
     });
     expect(during.keyId).toBeNull();
@@ -174,7 +174,7 @@ describe('429 and cooldown handling', () => {
     clock += 30_000;
     const after = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 100,
     });
     expect(after.keyId).toBe('k_a');
@@ -224,7 +224,7 @@ describe('shared upstream quota', () => {
 
     const selection = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 100,
     });
     expect(selection.keyId).toBeNull();
@@ -278,7 +278,7 @@ describe('rejected keys', () => {
     expect((await keyRuntimeRepo.get('k_a'))?.health).toBe('invalid');
     const selection = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 100,
     });
     expect(selection.keyId).toBeNull();
@@ -288,7 +288,7 @@ describe('rejected keys', () => {
     await service.reset('k_a');
     const after = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 100,
     });
     expect(after.keyId).toBe('k_a');
@@ -313,7 +313,7 @@ describe('key security', () => {
     // Full pool lifecycle: select, success, failure, state, toggle, reset.
     const selection = await service.select({
       providerId: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       estimatedTokens: 100,
     });
     expect(selection.keyId).toBe('k_secret');

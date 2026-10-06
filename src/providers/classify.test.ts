@@ -28,6 +28,19 @@ describe('provider error classification', () => {
     expect(result.class).toBe('quota_exceeded');
   });
 
+  it('classifies 402 Payment Required as quota_exceeded, not rejected', () => {
+    // OpenRouter answers a empty balance with 402 `insufficient_credit`.
+    // Classified as `rejected` it failed the batch as non-retryable; as
+    // quota the run fails over / pauses with a billing message instead.
+    const result = classifyProviderError({
+      status: 402,
+      message: 'Insufficient credit: add funds to continue.',
+    });
+    expect(result.class).toBe('quota_exceeded');
+    expect(result.error.code).toBe('provider_quota_exceeded');
+    expect(result.error.retryable).toBe(false);
+  });
+
   it('prefers rate_limit when the message names a per-minute window', () => {
     const result = classifyProviderError({
       status: 429,
@@ -94,7 +107,7 @@ describe('provider error classification', () => {
   });
 
   it('always produces a code the dictionaries can render', () => {
-    for (const status of [400, 401, 403, 404, 418, 429, 500, 502, 503]) {
+    for (const status of [400, 401, 402, 403, 404, 418, 429, 500, 502, 503]) {
       const result = classifyProviderError({ status });
       expect(result.error.code).toBeTruthy();
       expect(typeof result.error.message).toBe('string');

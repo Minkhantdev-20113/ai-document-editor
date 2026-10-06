@@ -1,5 +1,6 @@
 import { appEvents } from '../core/events/eventBus';
 import { AppError, toAppError } from '../core/errors/appError';
+import { logger } from '../core/logging/logger';
 import { providerConfigsRepo } from '../db/repositories';
 import type { ProviderConfig } from '../db/entities';
 import { getProviderDescriptor } from '../providers/registry';
@@ -46,10 +47,54 @@ class ProviderConfigService {
   /** Returns the stored config, creating a disabled default when absent. */
   async ensure(providerId: ProviderId): Promise<ProviderConfig> {
     const existing = await this.get(providerId);
-    if (existing) return existing;
+    if (existing) return this.healRetiredModel(providerId, existing);
     const created = defaultConfig(providerId);
     await providerConfigsRepo.put(created);
     return created;
+  }
+
+  /**
+   * Migrates a stored default model that the provider no longer serves.
+   *
+   * Providers retire model ids (Google shut down `gemini-2.0-flash` on
+   * 2026-06-01, OpenRouter dropped `google/gemini-2.0-flash-001`, Groq and
+   * DeepSeek did the same to their llama/chat ids) while a user's saved
+   * config keeps pointing at them - which turned every translation into a
+   * 404 that failed the whole job. The config is rewritten to the provider's
+   * current model once, silently from the user's point of view.
+   *
+   * `openai_compatible` is exempt: that endpoint may serve any model id the
+   * catalog has never heard of, so "unknown" there is not "retired".
+   */
+  private async healRetiredModel(providerId: ProviderId, config: ProviderConfig): Promise<ProviderConfig> {
+    if (providerId === 'openai_compatible') return config;
+    const storedModel = config.defaultModel;
+    if (!storedModel) return config;
+    const descriptor = getProviderDescriptor(providerId);
+    if (descriptor.models.some((model) => model.id === storedModel)) return config;
+    const replacement =
+      descriptor.models.find((model) => model.recommended)?.id ?? descriptor.models[0]?.id;
+    if (!replacement || replacement === storedModel) return config;
+
+    // `enabledModels: []`/null means "every model", never narrow it down.
+    const enabled = config.enabledModels;
+    const healed: ProviderConfig = {
+      ...config,
+      defaultModel: replacement,
+      enabledModels:
+        !enabled || enabled.length === 0 || enabled.includes(replacement)
+          ? enabled
+          : [...enabled, replacement],
+      updatedAt: Date.now(),
+    };
+    await providerConfigsRepo.put(healed);
+    logger.warn('Stored default model is no longer served by the provider', {
+      providerId,
+      from: storedModel,
+      to: replacement,
+    });
+    appEvents.emit('providers:changed', { providerId });
+    return healed;
   }
 
   async save(providerId: ProviderId, patch: ProviderConfigPatch): Promise<ProviderConfig> {

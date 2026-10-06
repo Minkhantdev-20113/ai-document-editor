@@ -22,7 +22,7 @@ function makeUnit(index: number, overrides: Partial<TranslationUnit> = {}): Tran
     status: 'translated',
     retryCount: 0,
     provider: 'gemini',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     keyId: null,
     estimatedTokens: 10,
     actualTokens: 8,
@@ -52,7 +52,7 @@ describe('unitsService - manual edits', () => {
     expect(unit.status).toBe('translated');
     // Provenance of the ORIGINAL AI output stays intact for the context panel.
     expect(unit.provider).toBe('gemini');
-    expect(unit.model).toBe('gemini-2.5-flash');
+    expect(unit.model).toBe('gemini-3.8-flash');
     expect(unit.error).toBeNull();
     // Warnings are recomputed against the edited text.
     expect(Array.isArray(warnings)).toBe(true);

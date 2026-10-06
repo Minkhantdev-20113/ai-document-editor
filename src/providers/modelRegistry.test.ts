@@ -53,10 +53,15 @@ describe('model registry facts', () => {
   it('never assumes PDF support - only explicitly declared models get it', () => {
     const specs = allModelSpecs();
     const pdfModels = specs.filter((spec) => spec.supportsPDF).map((spec) => `${spec.providerId}/${spec.modelId}`);
-    // Built-in declarations: only the Gemini 2.5 models are PDF-capable.
-    expect(pdfModels).toEqual(['gemini/gemini-2.5-pro', 'gemini/gemini-2.5-flash']);
+    // Built-in declarations: only the current Gemini text models declare PDF
+    // input (verified on their model cards).
+    expect(pdfModels).toEqual([
+      'gemini/gemini-3.8-flash',
+      'gemini/gemini-3.5-flash',
+      'gemini/gemini-3.5-flash-lite',
+    ]);
     // A text-only provider model must never claim PDF or vision.
-    const groq = requireModelSpec('groq', 'llama-3.1-8b-instant');
+    const groq = requireModelSpec('groq', 'openai/gpt-oss-20b');
     expect(groq.supportsPDF).toBe(false);
     expect(groq.supportsVision).toBe(false);
     expect(groq.supportsImage).toBe(false);
@@ -64,16 +69,16 @@ describe('model registry facts', () => {
 
   it('derives the enabled flag from the provider enabled-model list', () => {
     expect(modelSpecs('deepseek').every((spec) => spec.enabled)).toBe(true);
-    const filtered = modelSpecs('deepseek', { enabledModels: ['deepseek-chat'] });
-    expect(filtered.find((spec) => spec.modelId === 'deepseek-chat')?.enabled).toBe(true);
-    expect(filtered.find((spec) => spec.modelId === 'deepseek-reasoner')?.enabled).toBe(false);
+    const filtered = modelSpecs('deepseek', { enabledModels: ['deepseek-flash'] });
+    expect(filtered.find((spec) => spec.modelId === 'deepseek-flash')?.enabled).toBe(true);
+    expect(filtered.find((spec) => spec.modelId === 'deepseek-v4-pro')?.enabled).toBe(false);
   });
 });
 
 describe('catalog overlay validation', () => {
   const validEntry: CatalogOverlayEntry = {
     providerId: 'gemini',
-    modelId: 'gemini-2.5-flash',
+    modelId: 'gemini-3.8-flash',
     patch: { pricingType: 'free', contextLength: 1_000_000, supportsPDF: false },
   };
 
@@ -102,7 +107,7 @@ describe('catalog overlay validation', () => {
     const unknownModel = expectInvalid({ models: [{ ...validEntry, modelId: 'gemini-9.9-ultra' }] });
     expect(unknownModel.message).toContain('unknown model');
     // Missing patch.
-    expectInvalid({ models: [{ providerId: 'gemini', modelId: 'gemini-2.5-flash' }] });
+    expectInvalid({ models: [{ providerId: 'gemini', modelId: 'gemini-3.8-flash' }] });
     expectInvalid({ models: [{ ...validEntry, patch: [] }] });
   });
 
@@ -127,12 +132,12 @@ describe('catalog overlay validation', () => {
   it('applies an imported patch with source labelling and coherent pricing', () => {
     const overlay = validateOverlay({
       models: [
-        { providerId: 'gemini', modelId: 'gemini-2.5-flash', patch: { pricingType: 'free' } },
-        { providerId: 'groq', modelId: 'llama-3.1-8b-instant', patch: { supportsPDF: true } },
+        { providerId: 'gemini', modelId: 'gemini-3.8-flash', patch: { pricingType: 'free' } },
+        { providerId: 'groq', modelId: 'openai/gpt-oss-20b', patch: { supportsPDF: true } },
       ],
     });
 
-    const flash = requireModelSpec('gemini', 'gemini-2.5-flash', { overlay });
+    const flash = requireModelSpec('gemini', 'gemini-3.8-flash', { overlay });
     expect(flash.source).toBe('catalog_update');
     expect(flash.pricingType).toBe('free');
     // pricingType alone must keep the boolean flags consistent.
@@ -140,13 +145,13 @@ describe('catalog overlay validation', () => {
     expect(flash.paid).toBe(false);
 
     // An imported capability declaration DOES enable the badge (explicit > assumed).
-    const instant = requireModelSpec('groq', 'llama-3.1-8b-instant', { overlay });
-    expect(instant.supportsPDF).toBe(true);
-    expect(instant.source).toBe('catalog_update');
+    const oss20 = requireModelSpec('groq', 'openai/gpt-oss-20b', { overlay });
+    expect(oss20.supportsPDF).toBe(true);
+    expect(oss20.source).toBe('catalog_update');
 
     // Models without a patch stay built-in.
-    const reasoner = requireModelSpec('deepseek', 'deepseek-reasoner', { overlay });
-    expect(reasoner.source).toBe('builtin');
+    const pro = requireModelSpec('deepseek', 'deepseek-v4-pro', { overlay });
+    expect(pro.source).toBe('builtin');
   });
 
   it('rejects unknown models in the registry lookup too', () => {

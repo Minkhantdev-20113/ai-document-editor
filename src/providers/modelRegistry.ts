@@ -91,16 +91,17 @@ interface ModelMeta {
  * badge, an invented one is a broken feature.
  */
 const MODEL_META: Readonly<Record<string, ModelMeta>> = {
-  'gemini/gemini-2.5-pro': { pricing: 'free_tier', quality: 'high', speed: 'medium', pdf: true, image: true, vision: true },
-  'gemini/gemini-2.5-flash': { pricing: 'free_tier', quality: 'medium', speed: 'fast', pdf: true, image: true, vision: true },
-  'gemini/gemini-2.0-flash': { pricing: 'free_tier', quality: 'medium', speed: 'fast', image: true, vision: true },
-  'groq/llama-3.3-70b-versatile': { pricing: 'free_tier', quality: 'medium', speed: 'fast' },
-  'groq/llama-3.1-8b-instant': { pricing: 'free_tier', quality: 'low', speed: 'fast' },
+  // Ids mirror PROVIDER_CATALOG; flags follow each provider's model docs.
+  'gemini/gemini-3.8-flash': { pricing: 'free_tier', quality: 'high', speed: 'fast', pdf: true, image: true, vision: true },
+  'gemini/gemini-3.5-flash': { pricing: 'free_tier', quality: 'medium', speed: 'fast', pdf: true, image: true, vision: true },
+  'gemini/gemini-3.5-flash-lite': { pricing: 'free_tier', quality: 'medium', speed: 'fast', pdf: true, image: true, vision: true },
+  'groq/openai/gpt-oss-120b': { pricing: 'free_tier', quality: 'medium', speed: 'fast' },
+  'groq/openai/gpt-oss-20b': { pricing: 'free_tier', quality: 'low', speed: 'fast' },
   'openrouter/openai/gpt-4o-mini': { pricing: 'paid', quality: 'medium', speed: 'fast', image: true, vision: true },
-  'openrouter/anthropic/claude-3.5-sonnet': { pricing: 'paid', quality: 'high', speed: 'medium' },
-  'openrouter/google/gemini-2.0-flash-001': { pricing: 'paid', quality: 'medium', speed: 'fast', image: true, vision: true },
-  'deepseek/deepseek-chat': { pricing: 'paid', quality: 'medium', speed: 'medium' },
-  'deepseek/deepseek-reasoner': { pricing: 'paid', quality: 'high', speed: 'slow', structuredOutput: false },
+  'openrouter/anthropic/claude-sonnet-5.5': { pricing: 'paid', quality: 'high', speed: 'medium' },
+  'openrouter/google/gemini-3.5-flash': { pricing: 'paid', quality: 'medium', speed: 'fast', image: true, vision: true },
+  'deepseek/deepseek-flash': { pricing: 'paid', quality: 'medium', speed: 'fast' },
+  'deepseek/deepseek-v4-pro': { pricing: 'paid', quality: 'high', speed: 'medium' },
   'openai_compatible/gpt-4o-mini': { pricing: 'paid', quality: 'medium', speed: 'fast' },
   'openai_compatible/gpt-4o': { pricing: 'paid', quality: 'high', speed: 'medium' },
 };

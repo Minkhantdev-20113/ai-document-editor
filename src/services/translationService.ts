@@ -46,6 +46,21 @@ const FALLBACK_CONTEXT = 8_192;
 const FALLBACK_MAX_OUTPUT = 2_048;
 
 /**
+ * Fail-fast codes: errors that describe the run's CONFIGURATION rather than
+ * the batch's content. The next batch would hit exactly the same wall (a
+ * retired model id, keys the endpoint rejects), so the run stops on the first
+ * batch instead of issuing one doomed request per batch until the document is
+ * exhausted - which is how a retired model used to turn 0 of N units into
+ * hundreds of identical provider errors. Content-dependent failures
+ * (policy blocks, over-long batches) are deliberately NOT in this set: they
+ * can succeed on the next batch.
+ */
+const CONFIG_ERROR_CODES: ReadonlySet<string> = new Set([
+  'provider_invalid_model',
+  'provider_invalid_key',
+]);
+
+/**
  * Translation strategy (Phase 4 workflow): how carefully the engine batches
  * and samples. `draft` favours throughput, `precise` favours focus (smaller
  * batches, lower temperature), `standard` is the default balance.
@@ -449,6 +464,32 @@ class TranslationService {
       if (outcome.kind === 'error') {
         lastError = outcome.error;
         failed += await this.markBatchFailed(batch.units.map((unit) => unit.id), outcome.error);
+
+        if (CONFIG_ERROR_CODES.has(outcome.error.code)) {
+          // Configuration problem, not content: every remaining batch would
+          // fail identically, so stop now and tell the user what to change.
+          const candidate = candidates[outcome.providerIndex] ?? candidates[0];
+          const providerLabel = candidate ? getProviderDescriptor(candidate.providerId).label : 'the provider';
+          const hint =
+            outcome.error.code === 'provider_invalid_model'
+              ? `The model "${candidate?.model ?? ''}" is not available on ${providerLabel}. Open Providers, pick a current model, then run the translation again.`
+              : `Every ${providerLabel} API key was rejected. Re-verify the key on the API keys page, then run the translation again.`;
+          lastError = new AppError(hint, {
+            code: outcome.error.code,
+            retryable: false,
+            details: outcome.error.details,
+          });
+          logger.error('Aborting translation: configuration error would repeat for every batch', {
+            documentId: document.id,
+            providerId: candidate?.providerId ?? null,
+            model: candidate?.model ?? null,
+            code: outcome.error.code,
+            batchIndex: batchIndex + 1,
+            batchCount: plan.batches.length,
+          });
+          return summary('failed');
+        }
+
         // Next batch prefers a different provider than the one that failed.
         const nextPrimary = outcome.providerIndex + 1;
         primaryIndex = nextPrimary < candidates.length ? nextPrimary : primaryIndex;
