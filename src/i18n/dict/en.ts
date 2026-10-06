@@ -290,10 +290,15 @@ export const en = {
     ocrBody: 'These pages contain images only and were marked as needing OCR: {pages}.',
     ocrUnavailable:
       'No OCR provider is installed. Image-only pages stay empty until a real OCR engine is configured — no text is ever invented.',
+    ocrReady:
+      'An OCR engine is installed. Re-run the analysis to read these pages — recognition runs on this device.',
+    ocrNoModel:
+      'No OCR model for {language} is installed, so these pages stay empty instead of being guessed at.',
     failedTitle: 'Failed pages',
     failedBody: 'These pages failed and will be retried on the next run: {pages}.',
     rerun: 'Re-run analysis',
-    rerunHint: 'Finished pages are skipped; failed pages are retried.',
+    rerunHint:
+      'Finished pages are skipped; failed pages retry, and image-only pages retry while OCR is available.',
     emptyTitle: 'No analysis yet',
     emptyHint: 'Run the analysis to extract pages, blocks and translation units.',
     startedAt: 'Started',

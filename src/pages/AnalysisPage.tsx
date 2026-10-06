@@ -234,7 +234,7 @@ export function AnalysisPage() {
 
           {needsOcrPages.length > 0 && (
             <Card title={t('analysis.ocrTitle')}>
-              <OcrPanel pages={needsOcrPages} />
+              <OcrPanel pages={needsOcrPages} document={document} />
             </Card>
           )}
 

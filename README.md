@@ -7,14 +7,15 @@ Burmese output. You bring your own AI provider keys (BYOK); they are encrypted
 locally and never leave the browser except as requests to the provider you
 chose.
 
-> **Status: Phase 5 (v0.5.0).** The application shell, routing, local
+> **Status: Phase 5 (v0.6.0 — on-device OCR).** The application shell, routing, local
 > database, project management, job-state machine, provider adapter layer,
 > key vault, settings, error handling, document analysis, the production BYOK
 > provider system and the full translation workflow are complete — and
 > Phase 5 adds structure-preserving export: a worker-rendered PDF
 > (HarfBuzz-shaped Burmese, layout plan, page-by-page checkpoints, resume
 > after a crash) plus DOCX, HTML, plain text, Markdown and JSON, every file
-> gated by pre-download validation. Nothing here is faked with mock data.
+> gated by pre-download validation. v0.6.0 adds on-device OCR so image-only
+> pages are read rather than left empty. Nothing here is faked with mock data.
 
 ## Requirements
 
@@ -97,9 +98,12 @@ All commands are expected to be clean: **0 type errors, 0 lint errors,
 - **Language detection with confirmation** — multi-heuristic detection with
   visible confidence and per-candidate scores; below the confidence threshold
   the UI asks you to confirm the source language explicitly.
-- **Honest OCR handling** — image-only pages are marked `needs_ocr` and the
-  panel says plainly that no OCR engine is installed yet; text is never
-  invented.
+- **Honest OCR handling** — image-only pages are read by a built-in on-device
+  Tesseract engine: the analysis worker rasterizes the page, recognizes it
+  locally (English and Burmese models served from this app's own origin) and
+  re-feeds the text through the normal pipeline. When the document's language
+  has no model, or rasterization/recognition fails, the page keeps its
+  `needs_ocr` status and the panel says so; text is never invented.
 - **Verified translation units** — spec-shaped units with `translatedText`,
   status, retry counts and a `sourceChecksum`, so re-analysis preserves any
   translation already attached to unchanged text.
@@ -226,7 +230,8 @@ src/
   security/     key vault
   services/     business logic over the repositories (analysis driver, key
                 pool, translation engine, glossary, translation memory,
-                validation, unit editing, OCR registry, model catalog,
+                validation, unit editing, OCR (registry + on-device Tesseract),
+                model catalog,
                 export orchestration)
   state/        toast provider
   styles/       design tokens and flat, modern CSS

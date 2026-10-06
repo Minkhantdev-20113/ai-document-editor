@@ -429,10 +429,15 @@ export class DocumentService {
       startedAt: timestamp,
       updatedAt: timestamp,
     };
+    // A page already counted by `beginAnalysis` (an OCR retry re-applies a
+    // `needs_ocr` page) must not be counted twice, and its previous blocks
+    // have to be replaced instead of added to.
+    const alreadyCounted = existingPage?.analyzedAt !== undefined;
+    const previousBlocks = existingPage?.blockCount ?? 0;
     const nextAnalysis: AnalysisProgress = {
       ...analysis,
-      processedPages: analysis.processedPages + 1,
-      blocks: analysis.blocks + page.blocks.length,
+      processedPages: alreadyCounted ? analysis.processedPages : analysis.processedPages + 1,
+      blocks: Math.max(0, analysis.blocks - previousBlocks + page.blocks.length),
       updatedAt: timestamp,
     };
     const next: DocumentRecord = { ...document, analysis: nextAnalysis, updatedAt: timestamp };

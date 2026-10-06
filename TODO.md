@@ -13,16 +13,17 @@ limitations are cross-referenced to [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 | Phase 3 | BYOK providers: typed errors, multi-key failover, resumable batches, model registry, usage reporting | **done** (v0.3.0) |
 | Phase 4 | translation workflow: glossary, memory, validation, editing workspace with manual-edit protection | **done** (v0.4.0) |
 | Phase 5 | export: worker-rendered PDF with HarfBuzz Burmese fonts, checkpoints/resume, DOCX/HTML/TXT/MD/JSON, Export Center | **done** (v0.5.0) |
+| 0.6 | on-device OCR: image-only pages read locally (Tesseract, `eng`/`mya`), honest `needs_ocr` fallback | **done** (v0.6.0) |
 
 Last verification: `tsc --noEmit` 0 errors, `eslint .` 0 errors,
-`vitest run` 43 files / 374 tests passed, `vite build` succeeded.
+`vitest run` 48 files / 410 tests passed, `vite build` succeeded.
 
 ## Next
 
 Ordered by what removes the most user-visible gap first.
 
-1. **Offline PWA shell.** No service worker, manifest or `public/` assets exist
-   yet (`vite.config.ts` has no PWA plugin), so the app is offline-capable only
+1. **Offline PWA shell.** No service worker or manifest exist yet
+   (`vite.config.ts` has no PWA plugin), so the app is offline-capable only
    while the browser keeps its HTTP cache. Add a precached app shell so a cold
    start with no network works, and keep it out of the translation/export path
    (workers and IndexedDB already hold the real state).
@@ -35,9 +36,12 @@ Ordered by what removes the most user-visible gap first.
 3. **Sync pull/merge.** Sync is push-only today: no conflict resolution, no
    restore-from-remote. Needs a versioned merge policy before it is enabled by
    default.
-4. **OCR.** `services/ocrRegistry.ts` defines the `OcrProvider` seam but
-   nothing registers, so image-only pages stay `needs_ocr`. Plug in a real
-   engine (worker-side, same job/progress contract) — never invent text.
+4. **More OCR languages.** Only `eng` and `mya` models ship (that is why an
+   image-only page in any other language stays `needs_ocr`). Add a
+   `@tesseract.js-data/<lang>` devDependency, one line in
+   `scripts/copy-ocr-assets.mjs` and one entry in
+   `services/ocr/tesseractOcr.ts` per language — never read a page with the
+   wrong model.
 5. **Streaming translation UI.** One batch is one request/response; stream
    partial completions into the workspace without breaking batch resume.
 

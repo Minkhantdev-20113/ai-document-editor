@@ -1,5 +1,5 @@
 import type { PageIR } from '../domain/analysis/ir';
-import type { OpenRequest, OpenedDocumentInfo } from '../domain/analysis/source';
+import type { OpenRequest, OpenedDocumentInfo, PageRenderResult } from '../domain/analysis/source';
 
 /**
  * Request/response contract of the analysis worker session.
@@ -11,6 +11,7 @@ import type { OpenRequest, OpenedDocumentInfo } from '../domain/analysis/source'
 export type SessionRequest =
   | { readonly request: OpenRequest; readonly bytes: ArrayBuffer }
   | { readonly index: number }
+  | { readonly index: number; readonly render: true }
   | { readonly marker: 'close' };
 
-export type SessionResult = OpenedDocumentInfo | PageIR | null;
+export type SessionResult = OpenedDocumentInfo | PageIR | PageRenderResult | null;

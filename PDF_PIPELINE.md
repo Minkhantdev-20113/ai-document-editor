@@ -26,9 +26,14 @@ What happens between "you drop a PDF in" and "the app can translate it"
    becomes `status: 'needs_ocr'`,
 4. persists `documents.pageCount`, `charCount` and `inspectionState: 'ready'`.
 
-**OCR is not installed.** `services/ocrRegistry.ts` defines the seam and
-nothing registers, so image-only pages honestly stay `needs_ocr` — no text is
-fabricated and they are never sent for translation as if they had content.
+**Inspection never fills these pages in.** A page is `needs_ocr` because it has
+no selectable text, and stage 1 only probes: reading happens in stage 2 through
+`services/ocr/ocrService.ts`, which rasterizes the page to PNG inside the
+analysis worker and hands it to the engine registered in
+`services/ocrRegistry.ts` (on-device Tesseract,
+`services/ocr/tesseractOcr.ts`). If the document's language ships no model, or
+rasterization/recognition fails, the page stays `needs_ocr` — no text is
+fabricated and it is never sent for translation as if it had content.
 
 ## Stage 2 — analysis (`inspect_document` with analysis)
 
@@ -42,6 +47,7 @@ fabricated and they are never sent for translation as if they had content.
 | reading order | `domain/analysis/readingOrder.ts` | stable `orderIndex` across columns |
 | structure | `domain/analysis/structure.ts` | `heading/list/table/caption/quote/code` + flags |
 | units | `domain/analysis/pipeline.ts` | `translationUnits` per block |
+| OCR (image-only pages only) | `services/ocr/ocrService.ts` + `tesseractOcr.ts` | recognized lines re-entering `analyzePage` |
 
 Non-PDF inputs (DOCX, Markdown, HTML, plain text, CSV, JSON) flow through the
 same stages with a format-specific source, so everything downstream —
@@ -90,7 +96,8 @@ assertions are made against genuine documents rather than recorded snapshots.
 
 ## Known limitations
 
-- No OCR engine → image-only pages stay `needs_ocr`.
+- OCR reads English and Burmese only: an image-only page in any other
+  language stays `needs_ocr` instead of being read with the wrong model.
 - PDF forms, digital signatures, annotations and embedded JS are not
   re-created anywhere (they are ignored on read and absent from export).
 - Charts/figures are detected as image content for analysis purposes but are

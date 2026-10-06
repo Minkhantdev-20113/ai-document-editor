@@ -6,8 +6,10 @@ import { createProgress } from '../domain/types';
 import type { AnalysisSource } from '../domain/analysis/source';
 import type { PdfjsModule } from '../workers/pdfExtract';
 import { createLocalAnalysisSource } from '../workers/analysisSession';
+import { analyzePage } from '../domain/analysis/pipeline';
 import { analyzeDocument } from './documentAnalysisService';
 import { documentService } from './documentService';
+import { ocrRegistry, type OcrPageResult } from './ocrRegistry';
 
 const PDFJS = pdfjs as unknown as PdfjsModule;
 
@@ -53,6 +55,59 @@ function failingSource(failIndex: number): () => AnalysisSource {
   };
 }
 
+const OCR_PROVIDER_ID = 'fake-ocr';
+
+function registerFakeOcr(): void {
+  ocrRegistry.register({
+    id: OCR_PROVIDER_ID,
+    label: 'Fake OCR',
+    languages: ['en'],
+    recognize: async (): Promise<OcrPageResult> => ({
+      text: 'Recognized from the page image.',
+      confidence: 0.8,
+      lines: [
+        { text: 'Recognized from the page image.', bbox: { x: 50, y: 60, width: 320, height: 18 } },
+      ],
+    }),
+  });
+}
+
+/**
+ * A source whose only page is an image with no selectable text; `renders()`
+ * counts rasterization requests so tests can prove when OCR was (not) run.
+ */
+function imageOnlySource(): { createSource: () => AnalysisSource; renders: () => number } {
+  let documentId = 'doc_unknown';
+  let renders = 0;
+  const createSource = (): AnalysisSource => ({
+    open: async (bytes, request) => {
+      void bytes;
+      documentId = request.documentId;
+      return { pageCount: 1, metadata: null, title: null };
+    },
+    page: async (index) =>
+      analyzePage(
+        {
+          index,
+          width: 612,
+          height: 792,
+          rotation: 0,
+          items: [],
+          fonts: [],
+          images: [{ bbox: { x: 40, y: 40, width: 532, height: 712 } }],
+          links: [],
+        },
+        documentId,
+      ),
+    renderPage: async () => {
+      renders += 1;
+      return { blob: new Blob([new Uint8Array([137, 80, 78, 71])]), scale: 2 };
+    },
+    close: async () => undefined,
+  });
+  return { createSource, renders: () => renders };
+}
+
 async function createDocument(content: string, fileName: string, patch: { sourceLanguage?: string } = {}) {
   const timestamp = Date.now();
   const projectId = `prj_${Math.random().toString(36).slice(2)}`;
@@ -82,6 +137,7 @@ async function createDocument(content: string, fileName: string, patch: { source
 }
 
 beforeEach(async () => {
+  ocrRegistry.unregister(OCR_PROVIDER_ID);
   await projectsRepo.clear();
   await documentsRepo.clear();
   await documentPagesRepo.clear();
@@ -151,6 +207,62 @@ describe('analyzeDocument (pipeline driver over persisted state)', () => {
     expect(second.analyzedThisRun).toBe(0);
     expect(second.skipped).toBe(second.totalPages);
     expect(second.failedPages).toBe(0);
+  });
+
+  it('reads an image-only page through the OCR engine and counts it once', async () => {
+    const { documentId } = await createDocument(ENGLISH_MARKDOWN, 'plan.md');
+    registerFakeOcr();
+    const harness = imageOnlySource();
+
+    const first = await analyzeDocument({ documentId, createSource: harness.createSource });
+
+    expect(first.analyzedThisRun).toBe(1);
+    expect(harness.renders()).toBe(1);
+    const pages = await documentService.pages(documentId);
+    expect(pages[0]!.status).toBe('ready');
+    expect(pages[0]!.error).toBeNull();
+    expect(pages[0]!.blockCount).toBeGreaterThan(0);
+    const blocks = await documentService.blocksOfDocument(documentId);
+    expect(blocks.map((block) => block.text).join(' ')).toContain('Recognized from the page image');
+    expect(blocks[0]!.pageIndex).toBe(0);
+
+    const document = await documentService.require(documentId);
+    expect(document.analysis?.processedPages).toBe(1);
+    expect(document.analysis?.blocks).toBe(pages[0]!.blockCount);
+
+    // The page is `ready` now, so a re-run skips it without re-rendering.
+    const second = await analyzeDocument({ documentId, createSource: harness.createSource });
+    expect(second.analyzedThisRun).toBe(0);
+    expect(second.skipped).toBe(1);
+    expect(harness.renders()).toBe(1);
+    expect((await documentService.require(documentId)).analysis?.processedPages).toBe(1);
+  });
+
+  it('keeps image-only pages empty without an engine, then retries them once one exists', async () => {
+    const { documentId } = await createDocument(ENGLISH_MARKDOWN, 'plan.md');
+    const harness = imageOnlySource();
+
+    const first = await analyzeDocument({ documentId, createSource: harness.createSource });
+    expect(first.failedPages).toBe(0);
+    expect(harness.renders()).toBe(0);
+    expect((await documentService.pages(documentId))[0]!.status).toBe('needs_ocr');
+
+    // Without an engine the page is finished work: no render, no retry.
+    const second = await analyzeDocument({ documentId, createSource: harness.createSource });
+    expect(second.analyzedThisRun).toBe(0);
+    expect(second.skipped).toBe(1);
+    expect(harness.renders()).toBe(0);
+
+    // Installing an engine makes the same page unfinished: it is re-read.
+    registerFakeOcr();
+    const third = await analyzeDocument({ documentId, createSource: harness.createSource });
+    expect(third.analyzedThisRun).toBe(1);
+    expect(harness.renders()).toBe(1);
+    expect((await documentService.pages(documentId))[0]!.status).toBe('ready');
+
+    const document = await documentService.require(documentId);
+    expect(document.analysis?.processedPages).toBe(1);
+    expect(document.analysis?.blocks).toBeGreaterThan(0);
   });
 
   it('isolates a failing page: the rest analyze, the failure persists with retry', async () => {

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { appEvents } from '../core/events/eventBus';
 import type { DocumentRecord, TranslationUnit } from '../db/entities';
 import { documentsRepo, translationUnitsRepo } from '../db/repositories';
+import type { RawPageInput } from '../domain/analysis/ir';
+import { analyzePage } from '../domain/analysis/pipeline';
 import { documentService } from './documentService';
 
 const T0 = 1_700_000_000_000;
@@ -108,5 +110,53 @@ describe('documentService.setTargetLanguage (Phase 4 workflow)', () => {
     await expect(documentService.setTargetLanguage('doc_missing', 'my')).rejects.toThrow(
       /not found/i,
     );
+  });
+});
+
+function rawPageInput(): RawPageInput {
+  return {
+    index: 0,
+    width: 612,
+    height: 792,
+    rotation: 0,
+    items: [
+      {
+        text: 'First line of the page.',
+        bbox: { x: 72, y: 72, width: 200, height: 14 },
+        fontSize: 14,
+        fontKey: 'f1',
+        hasEol: true,
+      },
+      {
+        text: 'Second line of the page.',
+        bbox: { x: 72, y: 92, width: 210, height: 14 },
+        fontSize: 14,
+        fontKey: 'f1',
+        hasEol: true,
+      },
+    ],
+    fonts: [{ key: 'f1', family: 'Helvetica', bold: false, italic: false }],
+    images: [],
+    links: [],
+  };
+}
+
+describe('documentService.applyPageAnalysis (per-page commit counters)', () => {
+  it('re-applying the same page does not double-count progress or blocks', async () => {
+    await documentsRepo.put(makeDocument());
+    const page = analyzePage(rawPageInput(), 'doc_1');
+    expect(page.blocks.length).toBeGreaterThan(0);
+
+    await documentService.applyPageAnalysis('doc_1', page);
+    const first = await documentService.require('doc_1');
+    expect(first.analysis?.processedPages).toBe(1);
+    expect(first.analysis?.blocks).toBe(page.blocks.length);
+
+    // What an OCR retry does: the very same page is applied a second time.
+    await documentService.applyPageAnalysis('doc_1', page);
+    const second = await documentService.require('doc_1');
+    expect(second.analysis?.processedPages).toBe(1);
+    expect(second.analysis?.blocks).toBe(page.blocks.length);
+    expect(await documentService.blocksOfDocument('doc_1')).toHaveLength(page.blocks.length);
   });
 });

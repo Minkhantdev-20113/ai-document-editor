@@ -216,6 +216,10 @@ describe('analysis session over real PDFs', () => {
       expect(normal.requiresOcr).toBe(false);
       expect(normal.blocks).toHaveLength(1);
       expect(normal.blocks[0]!.text).toContain('normal text page');
+
+      // Rasterizing for OCR needs a canvas; Node has none, so the renderer
+      // degrades to null instead of failing the page.
+      expect(await source.renderPage?.(0)).toBeNull();
     } finally {
       await source.close();
     }

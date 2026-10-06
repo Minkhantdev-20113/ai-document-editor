@@ -74,6 +74,14 @@ current numbers with the provider (see [API_PROVIDERS.md](./API_PROVIDERS.md)).
 | The UI stays responsive during export | by design — all rendering runs in a Web Worker | — |
 | DOCX opens with different margins than the PDF | the DOCX is reflowed text with one section per source page (size/orientation kept), not a pixel copy | use PDF when exact geometry matters |
 
+## OCR: image-only pages
+
+| Symptom | Likely cause | Recovery |
+| --- | --- | --- |
+| A page stays `needs_ocr` after re-running analysis | no model for the document's language (English and Burmese ship with the app), the page could not be rasterized (no `OffscreenCanvas` in that browser), or recognition found no usable text | the Analysis page states which case applies; the page is left empty instead of being filled with invented text |
+| The first recognition takes a while | the OCR core (~4 MB) and the language model are fetched **once** from this app's own origin, then cached (IndexedDB + HTTP cache) | let it finish; later runs reuse the cache |
+| Output is garbled | a small on-device LSTM model reading a low-resolution scan | correct the text in the editor — the source page image and the recognized blocks stay in sync through the normal unit checksums |
+
 ## Key vault
 
 | Symptom | Recovery |
@@ -86,8 +94,9 @@ current numbers with the provider (see [API_PROVIDERS.md](./API_PROVIDERS.md)).
 
 **Documents and analysis**
 
-- No OCR engine: image-only pages honestly stay `needs_ocr` and are never
-  translated with invented text.
+- OCR coverage: image-only pages are read on-device in **English and Burmese**;
+  in any other language — or whenever rasterization/recognition fails — they
+  stay `needs_ocr` and are never translated with invented text.
 - PDF forms, annotations, signatures and embedded JavaScript are ignored on
   read and absent from export.
 - Charts/figures are not re-drawn by the exporter; text and vector structure

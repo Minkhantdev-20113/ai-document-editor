@@ -1,6 +1,6 @@
 import { AppError } from '../core/errors/appError';
 import type { PageIR } from '../domain/analysis/ir';
-import type { AnalysisSource, OpenedDocumentInfo } from '../domain/analysis/source';
+import type { AnalysisSource, OpenedDocumentInfo, PageRenderResult } from '../domain/analysis/source';
 import type { SessionRequest, SessionResult } from './analysisProtocol';
 import { WorkerRpcClient } from './rpc';
 
@@ -41,6 +41,10 @@ export function createWorkerAnalysisSession(): AnalysisSource {
     async page(index): Promise<PageIR> {
       ensureOpen();
       return (await rpc.call('page', { index })) as PageIR;
+    },
+    async renderPage(index): Promise<PageRenderResult | null> {
+      ensureOpen();
+      return (await rpc.call('page', { index, render: true })) as PageRenderResult | null;
     },
     async close(): Promise<void> {
       if (closed) return;

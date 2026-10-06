@@ -1,4 +1,5 @@
 import { AppError } from '../core/errors/appError';
+import type { BBox } from '../domain/analysis/ir';
 
 /** Input handed to an OCR provider for one page. */
 export interface OcrPageInput {
@@ -9,24 +10,31 @@ export interface OcrPageInput {
   readonly height: number;
   /** Rendered page pixels (PNG) when the caller produced them, else null. */
   readonly image: Blob | null;
-  /** Preferred recognition language (BCP-47-ish app code). */
+  /** Image pixels per page point, so `pixels / scale = points`. */
+  readonly scale: number;
+  /** Preferred recognition language as an app code (e.g. `en`). */
   readonly language: string;
+}
+
+/** One recognized line with geometry, in page points (top-left origin). */
+export interface OcrLineResult {
+  readonly text: string;
+  readonly bbox: BBox;
 }
 
 export interface OcrPageResult {
   readonly text: string;
   /** Provider-reported confidence in 0..1. */
   readonly confidence: number;
+  /** Recognized lines with geometry; omitted by providers that return text only. */
+  readonly lines?: readonly OcrLineResult[];
 }
 
-/**
- * Contract for a real OCR backend (device engine or a provider API).
- * Phase 2 ships no provider: the registry stays empty and recognition fails
- * honestly instead of fabricating text for image-only pages.
- */
 export interface OcrProvider {
   readonly id: string;
   readonly label: string;
+  /** App language codes this provider ships a model for. */
+  readonly languages: readonly string[];
   recognize(input: OcrPageInput): Promise<OcrPageResult>;
 }
 
@@ -41,13 +49,21 @@ class OcrRegistry {
     this.providers.delete(id);
   }
 
-  /** Currently registered providers; empty during Phase 2 by design. */
+  /** Currently registered providers; empty until one is registered at boot. */
   available(): readonly OcrProvider[] {
     return [...this.providers.values()];
   }
 
   get(id: string): OcrProvider | undefined {
     return this.providers.get(id);
+  }
+
+  /**
+   * First provider that ships a model for `language`. Recognition is skipped
+   * when nothing matches: an engine without the language must not guess.
+   */
+  firstSupporting(language: string): OcrProvider | undefined {
+    return this.available().find((provider) => provider.languages.includes(language));
   }
 
   /**

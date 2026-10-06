@@ -3,6 +3,57 @@
 All notable changes to the AI Document Translator are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] — On-device OCR (2026-10-06)
+
+Image-only pages are read instead of staying empty: a built-in Tesseract engine
+runs on this device — no third-party service, no upload. The analysis worker
+rasterizes each image-only page and recognized lines re-enter the ordinary
+pipeline as blocks and translation units; anything the engine cannot read for a
+definitive reason keeps its honest `needs_ocr` status.
+
+### Added — OCR
+
+- `services/ocr/tesseractOcr.ts`: `OcrProvider` registered at boot from
+  `main.tsx` (lazy chunk, ~19 KB; tesseract.js is bundled from
+  `dependencies`). One live worker per session, `eng`/`mya` models, line boxes
+  converted from image pixels to IR page points with the render scale.
+- `services/ocr/ocrService.ts` + `ocrSupport.ts`: language selection (detected
+  language first, declared source language as fallback, and only while some
+  engine ships a model for it) plus the single place that turns recognized
+  lines into `analyzePage` input. Every failure path resolves to `null`, so the
+  page is persisted unchanged as `needs_ocr`.
+- `AnalysisSource.renderPage()` and an `{ index, render }` session RPC: the
+  worker rasterizes a page to PNG at ~160 DPI with `rotation: 0`, so dividing
+  pixel coordinates by the returned scale lands directly in IR page points.
+  `pdfExtract.openPdf` installs an OffscreenCanvas-backed pdf.js
+  `CanvasFactory` — the worker has no `document`, and transparency groups /
+  image rescaling allocate helper canvases during `page.render`.
+- `scripts/copy-ocr-assets.mjs` wired as `predev`/`prebuild`: worker, core
+  (single-file build, wasm embedded) and `4.0.0_best_int` traineddata are
+  copied from `node_modules` into git-ignored `public/tess` and
+  `public/tessdata`, so no CDN is contacted at runtime.
+- Analysis driver: `requiresOcr` pages go through OCR inside
+  `analyzeDocument`, and `needs_ocr` pages are retried on re-run **while an
+  engine is registered** (they are finished work when none is).
+- `OcrPanel` now distinguishes "engine installed — re-run to read these pages"
+  from "no model for {language}", in English and Burmese.
+
+### Fixed
+
+- Retired Gemini model ids (`google/gemini-2.0-flash-001` → 404 →
+  `invalid_model`) failed every translation: the model catalog self-heals from
+  the provider and configuration errors now fail fast instead of looping.
+- AI Studio `AQ.` API keys were rejected by the key pattern; `keyPattern` now
+  accepts `AIza` and `AQ.` keys.
+- Language confidence *fell* as evidence grew (distinct stopword types were
+  divided by the whole sample): detection now scores stopword token share over
+  a fixed window with calibration and Latin script share.
+- Opening a modal stole focus from the field being edited (the focus effect
+  depended on inline callbacks); it now keys on `open`.
+- Re-applying a page double-counted `processedPages`/`blocks` during a run
+  (the OCR retry path made this reachable); `applyPageAnalysis` now replaces
+  the previous page's contribution instead of adding it again.
+
 ## [0.5.0] — Phase 5 (2026-10-06)
 
 Production document export: a worker-rendered, structure-preserving PDF plus

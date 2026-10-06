@@ -14,6 +14,13 @@ export interface OpenedDocumentInfo {
   readonly title: string | null;
 }
 
+/** A rendered page image plus the pixels-per-point scale it was drawn at. */
+export interface PageRenderResult {
+  readonly blob: Blob;
+  /** Pixels per page point: `pixels / scale` lands back in IR coordinates. */
+  readonly scale: number;
+}
+
 /**
  * Uniform read interface over every supported format.
  *
@@ -31,5 +38,12 @@ export interface AnalysisSource {
   open(bytes: ArrayBuffer, request: OpenRequest): Promise<OpenedDocumentInfo>;
   /** Analyze one page. A rejection leaves the session usable (per-page retry). */
   page(index: number): Promise<PageIR>;
+  /**
+   * Rasterizes one page to PNG for OCR (image-only pages only). Returns null
+   * when the environment cannot render - the page then keeps its `needs_ocr`
+   * status rather than getting invented text. Absent on sources that do not
+   * support rendering.
+   */
+  renderPage?(index: number): Promise<PageRenderResult | null>;
   close(): Promise<void>;
 }

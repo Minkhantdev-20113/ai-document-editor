@@ -6,6 +6,8 @@ import type { DocumentMetadata, LanguageDetection } from '../domain/analysis/ir'
 import { detectLanguage } from '../domain/languageDetect';
 import { createWorkerAnalysisSession } from '../workers/analysisClient';
 import { documentService } from './documentService';
+import { recognizeImageOnlyPage } from './ocr/ocrService';
+import { ocrEngineInstalled } from './ocr/ocrSupport';
 
 /** Transient page failures get one immediate retry before the page is marked failed. */
 const PAGE_RETRIES = 1;
@@ -77,6 +79,7 @@ function composeMetadata(info: OpenedDocumentInfo): DocumentMetadata | null {
  *
  * - parses the source via an AnalysisSource (Web Worker in the browser),
  * - skips pages already analyzed so interrupted runs resume instead of redoing work,
+ * - reads image-only pages through the OCR registry when an engine is installed,
  * - persists every page/block through documentService (per-page commit),
  * - isolates page failures: one retry, then `failed` is recorded and the run continues,
  * - ends with language detection over persisted text and a recount of the counters.
@@ -115,6 +118,9 @@ export async function analyzeDocument(options: AnalyzeDocumentOptions): Promise<
     let skipped = 0;
     let analyzedThisRun = 0;
     let aborted = false;
+    // With an OCR engine installed, `needs_ocr` pages are unfinished work and
+    // get retried on this run; without one they are final and are skipped.
+    const ocrAvailable = ocrEngineInstalled();
 
     const report = (index: number): void => {
       options.onPage?.({
@@ -135,7 +141,8 @@ export async function analyzeDocument(options: AnalyzeDocumentOptions): Promise<
 
       const existing = existingByIndex.get(index);
       const alreadyAnalyzed =
-        existing?.analyzedAt !== undefined && (existing.status === 'ready' || existing.status === 'needs_ocr');
+        existing?.analyzedAt !== undefined &&
+        (existing.status === 'ready' || (existing.status === 'needs_ocr' && !ocrAvailable));
       if (alreadyAnalyzed) {
         skipped += 1;
         report(index);
@@ -152,6 +159,14 @@ export async function analyzeDocument(options: AnalyzeDocumentOptions): Promise<
         logger.warn('Page analysis failed', { documentId, pageIndex: index, code: appError.code });
         report(index);
         continue;
+      }
+
+      // Image-only pages go through OCR; every miss (no engine, no model for
+      // the language, render or recognition failure) leaves `page` untouched,
+      // so the page is persisted as `needs_ocr` instead of getting invented text.
+      if (page.requiresOcr) {
+        const recognized = await recognizeImageOnlyPage({ document, index, page, source });
+        if (recognized) page = recognized;
       }
 
       await documentService.applyPageAnalysis(documentId, page);

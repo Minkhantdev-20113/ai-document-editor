@@ -5,6 +5,11 @@ dev-dist
 coverage
 .vite
 
+# Generated on-device OCR assets (copied from node_modules by
+# scripts/copy-ocr-assets.mjs before dev/build)
+public/tess
+public/tessdata
+
 # Local environment / secrets — never commit
 .env
 .env.*

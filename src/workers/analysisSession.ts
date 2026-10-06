@@ -1,14 +1,26 @@
-import { AppError, isAppError } from '../core/errors/appError';
+import { AppError, isAppError, toAppError } from '../core/errors/appError';
+import { logger } from '../core/logging/logger';
 import type { DocumentMetadata, PageIR } from '../domain/analysis/ir';
 import { analyzePage } from '../domain/analysis/pipeline';
-import type { AnalysisSource, OpenRequest, OpenedDocumentInfo } from '../domain/analysis/source';
+import type {
+  AnalysisSource,
+  OpenRequest,
+  OpenedDocumentInfo,
+  PageRenderResult,
+} from '../domain/analysis/source';
 import { parseDocx } from '../domain/analysis/docx';
 import {
   buildTextPages,
   detectTextFormat,
   parseTextDocument,
 } from '../domain/analysis/textFormats';
-import { extractPdfPage, openPdf, type OpenedPdf, type PdfjsModule } from './pdfExtract';
+import {
+  extractPdfPage,
+  openPdf,
+  renderPdfPagePng,
+  type OpenedPdf,
+  type PdfjsModule,
+} from './pdfExtract';
 
 /**
  * Analysis session core.
@@ -104,13 +116,29 @@ export function createLocalAnalysisSource(ns: PdfjsModule): AnalysisSource {
     }
   }
 
+  async function renderPage(index: number): Promise<PageRenderResult | null> {
+    const current = state;
+    // Text documents never have image-only pages; Node has no rasterizer.
+    if (current.kind !== 'pdf') return null;
+    if (!Number.isInteger(index) || index < 0 || index >= current.pdf.pageCount) return null;
+    try {
+      return await renderPdfPagePng(current.pdf.doc, index);
+    } catch (error) {
+      logger.warn('Page rasterization for OCR failed', {
+        pageIndex: index,
+        code: toAppError(error, 'analysis_failed').code,
+      });
+      return null;
+    }
+  }
+
   async function close(): Promise<void> {
     const current = state;
     state = { kind: 'empty' };
     if (current.kind === 'pdf') await current.pdf.dispose().catch(() => undefined);
   }
 
-  return { open, page, close };
+  return { open, page, renderPage, close };
 }
 
 /* ------------------------------------------------------------------ */

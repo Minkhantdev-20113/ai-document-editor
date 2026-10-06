@@ -6,7 +6,15 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'dev-dist/**', 'node_modules/**', 'coverage/**'],
+    ignores: [
+      'dist/**',
+      'dev-dist/**',
+      'node_modules/**',
+      'coverage/**',
+      // Vendored OCR runtime copied out of node_modules by scripts/copy-ocr-assets.mjs.
+      'public/tess/**',
+      'public/tessdata/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

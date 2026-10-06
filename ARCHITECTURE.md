@@ -487,9 +487,17 @@ authoritative; sync can be off (the default) forever.
   safely on quota; the workflow card and the three-column workspace now sit
   on top of that state, and glossary/memory/validation follow the same
   pattern (pure domain + service + event-driven views).
-- **OCR** — `services/ocrRegistry.ts` defines the `OcrProvider` seam;
-  nothing registers yet, so image-only pages honestly stay `needs_ocr` (no
-  invented text) until a real engine is plugged in.
+- **OCR** — `services/ocrRegistry.ts` defines the `OcrProvider` seam and
+  `services/ocr/tesseractOcr.ts` registers an on-device Tesseract engine at
+  boot (worker, core and the `eng`/`mya` models are copied from `node_modules`
+  into `public/` by `scripts/copy-ocr-assets.mjs`, so no third party is
+  contacted at runtime). For a `requiresOcr` page the driver renders it to PNG
+  inside the analysis worker (`renderPdfPagePng` + an OffscreenCanvas-backed
+  pdf.js `CanvasFactory`), recognizes it off the main thread and re-feeds the
+  lines through `analyzePage` like any other page; `needs_ocr` pages are
+  retried on re-run while an engine is registered. Without a model for the
+  document's language, or when rendering/recognition fails, the page honestly
+  stays `needs_ocr` (no invented text).
 - **PDF export — delivered in Phase 5** — `export_document` handler,
   `exportService` (checkpoints, resume, validation gating) and the export
   worker render from the analysis block/bbox rows: layout plan → painting →

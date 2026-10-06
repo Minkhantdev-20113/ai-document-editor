@@ -5,7 +5,7 @@
 
 export const APP_NAME = 'AI Document Translator';
 export const APP_SHORT_NAME = 'ADT';
-export const APP_VERSION = '0.5.0';
+export const APP_VERSION = '0.6.0';
 export const APP_PHASE = 5;
 /** Total planned build phases (used by the sidebar badge and help page). */
 export const APP_PHASE_TOTAL = 5;

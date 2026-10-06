@@ -9,6 +9,7 @@ import type {
   RawPageInput,
   RawTextItem,
 } from '../domain/analysis/ir';
+import type { PageRenderResult } from '../domain/analysis/source';
 
 /**
  * PDF extraction (pdf.js layer).
@@ -67,14 +68,66 @@ export interface OpenedPdf {
 /** pdf.js internal font ids look like `g_d0_f1`; they carry no family name. */
 const ANONYMOUS_FONT_ID = /^g_.*_f\d+$/;
 
+interface OffscreenCanvasEntry {
+  canvas: OffscreenCanvas | null;
+  context: OffscreenCanvasRenderingContext2D | null;
+}
+
+/**
+ * pdf.js canvas factory that needs no DOM.
+ *
+ * pdf.js defaults to `DOMCanvasFactory`, which calls `document.createElement`
+ * - there is no `document` inside the analysis worker. Rendering a page does
+ * allocate helper canvases (transparency groups, image rescaling), so without
+ * this replacement `page.render` would throw and image-only pages could never
+ * be rasterized for OCR. Duck-typed to the `BaseCanvasFactory` contract pdf.js
+ * instantiates with `new CanvasFactory({ ownerDocument, enableHWA })`.
+ */
+class OffscreenCanvasFactory {
+  readonly #willReadFrequently: boolean;
+
+  constructor(options?: { readonly enableHWA?: boolean }) {
+    this.#willReadFrequently = options?.enableHWA !== true;
+  }
+
+  create(width: number, height: number): OffscreenCanvasEntry {
+    if (width <= 0 || height <= 0) throw new Error('Invalid canvas size');
+    const canvas = new OffscreenCanvas(width, height);
+    return { canvas, context: canvas.getContext('2d', { willReadFrequently: this.#willReadFrequently }) };
+  }
+
+  reset(entry: OffscreenCanvasEntry, width: number, height: number): void {
+    if (!entry.canvas) throw new Error('Canvas is not specified');
+    if (width <= 0 || height <= 0) throw new Error('Invalid canvas size');
+    entry.canvas.width = width;
+    entry.canvas.height = height;
+  }
+
+  destroy(entry: OffscreenCanvasEntry): void {
+    if (!entry.canvas) throw new Error('Canvas is not specified');
+    entry.canvas.width = 0;
+    entry.canvas.height = 0;
+    entry.canvas = null;
+    entry.context = null;
+  }
+}
+
 /**
  * Parse and open a PDF for analysis.
  *
  * Rendering options are disabled on purpose: we only need text runs, font
- * metrics and image boxes, never pixels.
+ * metrics and image boxes, never pixels - except when `renderPdfPagePng`
+ * rasterizes an image-only page, which is why the canvas factory above is
+ * installed whenever the runtime can allocate an `OffscreenCanvas`.
  */
 export async function openPdf(ns: PdfjsModule, bytes: ArrayBuffer): Promise<OpenedPdf> {
-  const task = ns.getDocument({ data: new Uint8Array(bytes), disableFontFace: true });
+  const task = ns.getDocument({
+    data: new Uint8Array(bytes),
+    disableFontFace: true,
+    ...(typeof OffscreenCanvas !== 'undefined'
+      ? { CanvasFactory: OffscreenCanvasFactory }
+      : {}),
+  });
   try {
     const doc = await task.promise;
     const metadata = await readMetadata(doc);
@@ -138,6 +191,53 @@ export async function extractPdfPage(
       images: collectImages(ns, operatorList, viewport),
       links: await collectLinks(page, viewport),
     };
+  } finally {
+    page.cleanup();
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Page rasterization (OCR input)                                      */
+/* ------------------------------------------------------------------ */
+
+/** Width the OCR renderer aims for: ~1600px is ~160 DPI on a letter page. */
+const OCR_TARGET_WIDTH_PX = 1_600;
+const OCR_MAX_SCALE = 3;
+
+/**
+ * Renders one page to a PNG for OCR.
+ *
+ * The viewport uses `rotation: 0` - the same unrotated content space
+ * `extractPdfPage` reports - so dividing pixel coordinates by the returned
+ * scale lands directly in IR page points (top-left origin, y down).
+ *
+ * Returns null when the runtime cannot rasterize (no `OffscreenCanvas`, as in
+ * Node tests): callers then keep the page as `needs_ocr` rather than guess.
+ */
+export async function renderPdfPagePng(
+  doc: PDFDocumentProxy,
+  index: number,
+): Promise<PageRenderResult | null> {
+  if (typeof OffscreenCanvas === 'undefined' || typeof Blob === 'undefined') return null;
+  const page = await doc.getPage(index + 1);
+  try {
+    const base = page.getViewport({ scale: 1, rotation: 0 });
+    if (!(base.width > 0) || !(base.height > 0)) return null;
+    const scale = Math.min(OCR_MAX_SCALE, Math.max(1, OCR_TARGET_WIDTH_PX / base.width));
+    const viewport = page.getViewport({ scale, rotation: 0 });
+    const canvas = new OffscreenCanvas(
+      Math.max(1, Math.ceil(viewport.width)),
+      Math.max(1, Math.ceil(viewport.height)),
+    );
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    await page.render({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      canvasContext: context as unknown as CanvasRenderingContext2D,
+      viewport,
+      background: '#ffffff',
+    }).promise;
+    return { blob: await canvas.convertToBlob({ type: 'image/png' }), scale };
   } finally {
     page.cleanup();
   }

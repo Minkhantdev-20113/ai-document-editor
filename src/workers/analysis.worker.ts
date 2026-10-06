@@ -49,6 +49,11 @@ async function handle(type: string, payload: SessionRequest): Promise<SessionRes
     return source.open(payload.bytes, payload.request);
   }
   if (type === 'page' && payload && 'index' in payload) {
+    // `render` rasterizes the page for OCR instead of analyzing it; the PNG
+    // blob is structured-clonable, so it crosses the worker boundary fine.
+    if ('render' in payload && payload.render) {
+      return (await source.renderPage?.(payload.index)) ?? null;
+    }
     return source.page(payload.index);
   }
   if (type === 'close') {
