@@ -3,6 +3,45 @@
 All notable changes to the AI Document Translator are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.1] — Requests the output budget it plans with (2026-10-07)
+
+A run could end `Completed` while almost every unit was `Failed` (the worst
+report: 14 of 237 units translated, the rest failed, no reason shown
+anywhere). The engine sized batches against the model's output allowance and
+then never asked the endpoint for it.
+
+### Fixed
+
+- **Every batch now sends the output allowance it was sized against
+  (`max_tokens`).** `planBatches` guarantees the expected answer fits
+  `maxOutputTokens`, but the request never carried that number, so each
+  endpoint fell back to its own default - routinely a fraction of the model's
+  documented maximum. A Burmese answer longer than that default is cut off
+  mid-JSON, fails the contract check, is classified `provider_rejected` and is
+  halved twice at most: exactly the observed pattern where only the shortest
+  batches survived. Each request now sends the allowance the batches were
+  planned with - the model's documented maximum minus the prompt - so the
+  answer can use the full budget the planner promised (target text, the JSON
+  framing around it, any reasoning a thinking model spends) instead of a
+  default nobody chose. Split halves inherit a proportional share of their
+  parent's budget.
+- **A 4xx about an optional parameter no longer fails the batch.** `max_tokens`
+  and `response_format` are extras a route may decline (a real output cap
+  below the catalog entry, an upstream that never learned `json_object`) while
+  the payload itself is fine. The provider now asks again with only the
+  offending parameter adjusted - budget halved, JSON mode off - instead of
+  rejecting good units. Quota, rate-limit, auth, model and transport errors
+  never enter this path.
+- **The failure reason is visible at last.** `unit.error.message`, which since
+  0.8.0 carries the model id, stop reason and reply snippet, now shows on the
+  unit row in the workspace and in the context panel under `Failure reason` -
+  the 0.8.0 messages were written but nowhere rendered.
+- **A finished run no longer looks successful when it was not.** The workflow
+  shows the failed count next to `Completed` and next to
+  `Review in editor 14 of 237`, and the progress panel reads persisted counts,
+  so a reload no longer replaces the outcome with
+  `Waiting for the translation job to start…`.
+
 ## [0.8.0] — Parallel batches, honest failure messages (2026-10-06)
 
 Translation runs no longer queue every request behind the previous one, no

@@ -172,6 +172,33 @@ describe('validationService', () => {
     expect(await service.validateUnit('u_missing')).toEqual([]);
   });
 
+  it('storedSummary counts failed units alongside the translated ones', async () => {
+    await translationUnitsRepo.putMany([
+      makeUnit(1),
+      makeUnit(2),
+      makeUnit(3, {
+        status: 'failed',
+        translatedText: null,
+        error: {
+          code: 'provider_rejected',
+          message: 'Translation response was not valid JSON',
+          at: 1_700_000_000_000,
+          retryable: true,
+        },
+      }),
+      makeUnit(4, { status: 'pending', translatedText: null }),
+    ]);
+
+    const summary = await service.storedSummary('doc_1');
+
+    expect(summary.units).toBe(4);
+    expect(summary.translated).toBe(2);
+    // A run can end "completed" while most of its units failed - the workflow
+    // shows this count so a green badge never hides a half-translated document.
+    expect(summary.failed).toBe(1);
+    expect(summary.unitsWithWarnings).toBeGreaterThanOrEqual(0);
+  });
+
   it('handles an empty document gracefully', async () => {
     const summary = await service.validateDocument('doc_empty');
     expect(summary).toEqual({

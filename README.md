@@ -7,7 +7,7 @@ Burmese output. You bring your own AI provider keys (BYOK); they are encrypted
 locally and never leave the browser except as requests to the provider you
 chose.
 
-> **Status: Phase 5 (v0.8.0 — parallel batches).** The application shell, routing, local
+> **Status: Phase 5 (v0.8.1 — batches that actually land).** The application shell, routing, local
 > database, project management, job-state machine, provider adapter layer,
 > key vault, settings, error handling, document analysis, the production BYOK
 > provider system and the full translation workflow are complete — and
@@ -20,6 +20,11 @@ chose.
 > providers publish (checked 2026-10-06). v0.8.0 sends batches in parallel
 > behind a canary request, retries a rejected batch on a smaller payload, and
 > puts the model, stop reason and reply snippet into every failure message.
+> v0.8.1 sends each batch the output allowance it was sized against (the plan
+> always budgeted for it; the request never carried it), asks again with only
+> the offending parameter when an endpoint refuses `max_tokens` or
+> `response_format`, and renders the stored failure reason and the failed-unit
+> count next to a run that reports `Completed`.
 > Nothing here is faked with mock data.
 
 ## Requirements

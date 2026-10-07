@@ -2,8 +2,9 @@ import type { ProjectStatus } from '../../domain/types';
 import { useCollection } from '../../hooks/useAsyncData';
 import { useT } from '../../i18n/I18nProvider';
 import { apiKeyService } from '../../services/apiKeyService';
+import { validationService } from '../../services/validationService';
 import { ProgressBar } from '../ui/Progress';
-import { StatusBadge } from '../ui/StatusBadge';
+import { Badge, StatusBadge } from '../ui/StatusBadge';
 import { useTranslationProgress } from './useTranslationProgress';
 
 export interface TranslationProgressPanelProps {
@@ -21,6 +22,15 @@ export function TranslationProgressPanel({ documentId, jobState }: TranslationPr
   const t = useT();
   const progress = useTranslationProgress(documentId);
   const { data: keys } = useCollection(() => apiKeyService.list(), [], ['apiKeys:changed']);
+  // Persisted counts, independent of the live progress event: after a reload
+  // (or a finished run) this is what says how much of the document actually
+  // made it - including how many units failed, which a bare "Completed" badge
+  // would otherwise hide.
+  const { data: summary } = useCollection(
+    () => validationService.storedSummary(documentId),
+    [documentId],
+    ['units:changed'],
+  );
 
   const keyHint =
     progress?.keyId != null
@@ -30,6 +40,17 @@ export function TranslationProgressPanel({ documentId, jobState }: TranslationPr
     progress && progress.total > 0
       ? Math.round((progress.processed / progress.total) * 100)
       : 0;
+
+  const failed = summary?.failed ?? 0;
+  const failedRow =
+    failed > 0 ? (
+      <div className="kv">
+        <span className="kv__key">{t('workflow.failedUnits')}</span>
+        <span className="kv__value">
+          <Badge tone="danger">{failed}</Badge>
+        </span>
+      </div>
+    ) : null;
 
   return (
     <div className="stack stack-3">
@@ -75,6 +96,19 @@ export function TranslationProgressPanel({ documentId, jobState }: TranslationPr
             <span className="kv__key">{t('workflow.key')}</span>
             <span className="kv__value mono text-xs">{keyHint ?? t('workflow.keyNone')}</span>
           </div>
+          {failedRow}
+        </>
+      ) : summary && summary.units > 0 ? (
+        // No live event (finished run, or the page was reloaded): report what
+        // is actually persisted instead of claiming nothing has started yet.
+        <>
+          <div className="kv">
+            <span className="kv__key">{t('workflow.units')}</span>
+            <span className="kv__value">
+              {summary.translated} {t('common.of')} {summary.units}
+            </span>
+          </div>
+          {failedRow}
         </>
       ) : (
         <p className="text-sm muted">{t('workflow.progressWaiting')}</p>

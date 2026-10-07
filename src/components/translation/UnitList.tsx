@@ -74,6 +74,12 @@ export function UnitList({
               {provenance && <span className="text-xs subtle">{provenance}</span>}
             </div>
 
+            {unit.error && (
+              <p className="text-xs unit-failure" title={unit.error.message}>
+                <span className="unit-failure__label">{t('editor.failureReason')}</span>
+                {unit.error.message}
+              </p>
+            )}
             {viewMode !== 'translation' && (
               <div className="stack stack-1">
                 <span className="text-xs subtle">{t('editor.original')}</span>

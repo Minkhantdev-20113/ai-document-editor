@@ -1004,4 +1004,35 @@ describe('translation engine (Phase 3)', () => {
     // Two batches were in flight at the same time.
     expect(maxInFlight).toBeGreaterThanOrEqual(2);
   });
+
+  it("requests each batch's output budget instead of the endpoint's default", async () => {
+    // 40 units plan as two batches (32 + 8). The plan sizes both against the
+    // model's max output tokens, but nothing used to *ask* the endpoint for
+    // them: without `max_tokens` every route falls back to its own default,
+    // a Burmese answer longer than that default is cut off mid-JSON, and the
+    // batch fails the contract check - which is how a run ends with only its
+    // shortest batches translated.
+    await translationUnitsRepo.putMany(Array.from({ length: 40 }, (_, index) => makeUnit(index + 1)));
+    await enableProvider('gemini', 'gemini-3.8-flash');
+    await seedKey('k_gemini', 'gemini');
+
+    const budgets: (number | undefined)[] = [];
+    const { service } = makeService({
+      gemini: async (call, options) => {
+        budgets.push(options?.maxOutputTokens);
+        return successResult(call);
+      },
+    });
+
+    const outcome = await service.translateDocument({ documentId: 'doc_1' });
+
+    expect(outcome.status).toBe('completed');
+    expect(budgets).toHaveLength(2);
+    // The model's documented output allowance (the number the batches were
+    // planned with), not the endpoint's own - smaller - default.
+    const candidates = await service.resolveCandidates();
+    const documented = candidates[0]?.maxOutputTokens ?? 0;
+    expect(documented).toBeGreaterThan(0);
+    expect(budgets).toEqual([documented, documented]);
+  });
 });

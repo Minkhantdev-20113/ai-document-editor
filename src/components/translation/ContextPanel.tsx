@@ -85,6 +85,15 @@ export function ContextPanel({
         <p className="text-sm">{unit.sourceText}</p>
       </div>
 
+      {unit.error && (
+        <div className="stack stack-2">
+          <span className="text-xs subtle">{t('editor.failureReason')}</span>
+          <p className="text-sm unit-failure__detail" title={unit.error.message}>
+            {unit.error.message}
+          </p>
+        </div>
+      )}
+
       <div className="stack stack-2">
         <span className="text-xs subtle">{t('editor.warnings')}</span>
         {warnings.length === 0 ? (

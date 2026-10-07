@@ -155,7 +155,13 @@ export function WorkflowCard({ project, document, jobs, busy, onTranslate }: Wor
           : translateJob
             ? 'active'
             : 'pending',
-      detail: translateJob ? t(`status.${translateJob.state}`) : undefined,
+      detail: translateJob
+        ? validation && validation.failed > 0
+          ? `${t(`status.${translateJob.state}`)} · ${t('workflow.failedCount', {
+              count: validation.failed,
+            })}`
+          : t(`status.${translateJob.state}`)
+        : undefined,
     },
     {
       label: t('workflow.stepValidation'),
@@ -177,7 +183,11 @@ export function WorkflowCard({ project, document, jobs, busy, onTranslate }: Wor
       state: validation && validation.translated > 0 ? 'done' : 'pending',
       detail:
         validation && validation.units > 0
-          ? `${validation.translated} ${t('common.of')} ${validation.units}`
+          ? `${validation.translated} ${t('common.of')} ${validation.units}${
+              validation.failed > 0
+                ? ` · ${t('workflow.failedCount', { count: validation.failed })}`
+                : ''
+            }`
           : undefined,
     },
   ];

@@ -16,9 +16,10 @@ limitations are cross-referenced to [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 | 0.6 | on-device OCR: image-only pages read locally (Tesseract, `eng`/`mya`), honest `needs_ocr` fallback | **done** (v0.6.0) |
 | 0.7 | free-tier model catalog: every model each provider serves free-of-charge (Gemini ×6, Groq ×3, OpenRouter `:free` ×6, Mistral on a compatible endpoint) with published rate limits | **done** (v0.7.0) |
 | 0.8 | throughput and diagnosability: canary-then-parallel batches (new `Parallel batches` setting), per-model `response_format`, batch halving on a rejected reply, no backoff on contract failures, model/finish_reason/reply snippet in every failure message | **done** (v0.8.0) |
+| 0.8.1 | requests the output budget each batch was sized with (`max_tokens` was never sent), one-shot self-correction when an endpoint refuses `max_tokens`/`response_format`, failure reason rendered on the unit, failed counts shown next to a `Completed` run | **done** (v0.8.1) |
 
 Last verification: `tsc --noEmit` 0 errors, `eslint .` 0 errors,
-`vitest run` 50 files / 426 tests passed, `vite build` succeeded.
+`vitest run` 51 files / 432 tests passed, `vite build` succeeded.
 
 ## Next
 

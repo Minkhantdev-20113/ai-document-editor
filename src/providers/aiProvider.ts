@@ -1,4 +1,5 @@
 import { AppError, toAppError } from '../core/errors/appError';
+import { logger } from '../core/logging/logger';
 import {
   estimateMessagesTokens,
   estimateTokens,
@@ -380,24 +381,60 @@ export function createAIProvider(providerId: ProviderId, options: AIProviderOpti
         ? true
         : modelSupportsJsonMode(providerId, call.model);
 
-      const result = await provider.generate(
-        {
-          model: call.model,
-          messages: [
-            { role: 'system', content: messages.system },
-            { role: 'user', content: messages.user },
-          ],
-          ...(translateOptions.maxOutputTokens !== undefined
-            ? { maxOutputTokens: translateOptions.maxOutputTokens }
-            : {}),
-          ...(wantsStructured ? { responseFormat: 'json' as const } : {}),
-        },
-        {
-          temperature: translateOptions.temperature ?? 0.2,
-          ...(translateOptions.signal ? { signal: translateOptions.signal } : {}),
-          ...(translateOptions.timeoutMs !== undefined ? { timeoutMs: translateOptions.timeoutMs } : {}),
-        },
-      );
+      let structured = wantsStructured;
+      let outputTokens = translateOptions.maxOutputTokens;
+      let adjustments = 0;
+
+      // One request shape with at most two self-corrections. `max_tokens` and
+      // `response_format` are *optional* parameters, so a route can refuse one
+      // of them (a real output cap below the catalog entry, an upstream that
+      // never learned `json_object`) while the rest of the request is valid.
+      // Dropping or shrinking only the rejected parameter turns what would be a
+      // whole-batch failure into one extra request. Quota, rate-limit, auth and
+      // transport errors never reach this branch: `rejectedRequestParam` only
+      // matches 4xx-class rejections.
+      const callModel = async (): Promise<GenerateResult> => {
+        for (;;) {
+          try {
+            return await provider.generate(
+              {
+                model: call.model,
+                messages: [
+                  { role: 'system', content: messages.system },
+                  { role: 'user', content: messages.user },
+                ],
+                ...(outputTokens !== undefined ? { maxOutputTokens: outputTokens } : {}),
+                ...(structured ? { responseFormat: 'json' as const } : {}),
+              },
+              {
+                temperature: translateOptions.temperature ?? 0.2,
+                ...(translateOptions.signal ? { signal: translateOptions.signal } : {}),
+                ...(translateOptions.timeoutMs !== undefined ? { timeoutMs: translateOptions.timeoutMs } : {}),
+              },
+            );
+          } catch (error) {
+            const appError = toAppError(error);
+            const remedy = rejectedRequestParam(appError);
+            if (adjustments >= 2 || remedy === null) throw appError;
+            if (remedy === 'output_tokens' && outputTokens !== undefined) {
+              outputTokens = Math.max(OUTPUT_TOKEN_FLOOR, Math.floor(outputTokens / 2));
+            } else if (remedy === 'response_format' && structured) {
+              structured = false;
+            } else {
+              throw appError;
+            }
+            adjustments += 1;
+            logger.warn('Endpoint refused an optional request parameter; asking again without it', {
+              providerId,
+              model: call.model,
+              remedy,
+              message: appError.message,
+            });
+          }
+        }
+      };
+
+      const result = await callModel();
 
       try {
         const translations = parseTranslationResponse(
@@ -409,7 +446,7 @@ export function createAIProvider(providerId: ProviderId, options: AIProviderOpti
           model: result.model,
           keyId: result.keyId,
           usage: result.usage,
-          structured: wantsStructured,
+          structured,
         };
       } catch (error) {
         // The HTTP call succeeded but the body violated the JSON contract.
@@ -458,6 +495,36 @@ function describePayload(payload: unknown): { message?: string; providerStatus?:
   if (typeof error === 'string') return { message: error };
   if (typeof record['message'] === 'string') return { message: record['message'] as string };
   return {};
+}
+
+/** Floor for a shrunk output budget: below this no reply can hold its JSON. */
+const OUTPUT_TOKEN_FLOOR = 512;
+
+const OUTPUT_TOKEN_PARAM =
+  /max[_\s-]*(?:output[_\s-]*)?(?:completion[_\s-]*)?tokens?|maximum(?:\s+number\s+of)?\s+tokens?|too many tokens|token limit/i;
+const RESPONSE_FORMAT_PARAM =
+  /response[_\s-]?(?:format|mime)|json[_\s-]?(?:object|mode)|structured output|mime type/i;
+
+/**
+ * Which optional request parameter a 4xx rejection is complaining about.
+ *
+ * Both `max_tokens` and `response_format` are extras the endpoint may decline
+ * while the payload itself is fine - a route whose real output cap sits below
+ * its catalog entry, or an upstream that has never heard of `json_object`.
+ * Returning the offending parameter lets `translate()` ask again with only
+ * that parameter adjusted instead of failing a good batch.
+ *
+ * Restricted to `provider_rejected` (the 4xx bucket): quota, rate-limit, auth,
+ * model and transport errors must keep their existing handling and must never
+ * buy an extra request from this path.
+ */
+export function rejectedRequestParam(
+  error: AppError,
+): 'output_tokens' | 'response_format' | null {
+  if (error.code !== 'provider_rejected') return null;
+  if (OUTPUT_TOKEN_PARAM.test(error.message)) return 'output_tokens';
+  if (RESPONSE_FORMAT_PARAM.test(error.message)) return 'response_format';
+  return null;
 }
 
 /**

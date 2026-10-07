@@ -82,22 +82,26 @@ class ValidationService {
   ): Promise<{
     readonly units: number;
     readonly translated: number;
+    /** Units whose last attempt failed - the run can still be "completed". */
+    readonly failed: number;
     readonly unitsWithWarnings: number;
     readonly totalWarnings: number;
   }> {
     const units = await this.loadUnits(documentId);
     let translated = 0;
+    let failed = 0;
     let unitsWithWarnings = 0;
     let totalWarnings = 0;
     for (const unit of units) {
       if (unit.status === 'translated' || unit.status === 'reviewed') translated += 1;
+      if (unit.status === 'failed') failed += 1;
       const count = unit.warnings?.length ?? 0;
       if (count > 0) {
         unitsWithWarnings += 1;
         totalWarnings += count;
       }
     }
-    return { units: units.length, translated, unitsWithWarnings, totalWarnings };
+    return { units: units.length, translated, failed, unitsWithWarnings, totalWarnings };
   }
 
   private async loadUnits(documentId: string): Promise<TranslationUnit[]> {

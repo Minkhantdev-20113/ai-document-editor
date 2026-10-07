@@ -4,7 +4,7 @@ import { logger } from '../core/logging/logger';
 import { translationUnitsRepo } from '../db/repositories';
 import type { DocumentRecord, TranslationUnit } from '../db/entities';
 import { backoffDelayMs } from '../domain/provider/backoff';
-import { planBatches, type BatchQuality, type BatchingPolicy } from '../domain/provider/batching';
+import { planBatches, type BatchQuality, type BatchingPolicy, type PlannedBatch } from '../domain/provider/batching';
 import { estimateTokens } from '../domain/provider/tokens';
 import type { GlossaryRule } from '../domain/glossary';
 import type { DocumentTypeHint } from '../domain/provider/translationPrompt';
@@ -58,6 +58,46 @@ const MAX_BATCH_SPLIT_DEPTH = 2;
 /** Conservative sizing for models missing from the registry (never assume). */
 const FALLBACK_CONTEXT = 8_192;
 const FALLBACK_MAX_OUTPUT = 2_048;
+/** Never ask for less than this - a 40-token ceiling would starve any reply. */
+const MIN_OUTPUT_TOKENS = 512;
+
+/**
+ * Output-token allowance a batch requests (`max_tokens`): the same model
+ * budget `planBatches` sized it against, minus the prompt it has to share the
+ * window with.
+ *
+ * Asking for *that* number - not for the endpoint's own default - is the point.
+ * The planner guarantees `prompt + maxOutputTokens` fits, and an endpoint's
+ * default is at most its model maximum, so this can only ever add headroom:
+ * target text the estimate under-counts, the JSON framing around it, and the
+ * reasoning a thinking model spends before answering. Nothing is billed for
+ * unused allowance, and a route that documents a lower cap than its catalog
+ * entry gets caught by the one-shot shrink in `aiProvider.translate`.
+ */
+function outputBudgetFor(batch: PlannedBatch, policy: BatchingPolicy): number {
+  return Math.max(
+    MIN_OUTPUT_TOKENS,
+    Math.min(policy.maxOutputTokens, policy.contextWindow - batch.promptTokens),
+  );
+}
+
+/**
+ * Scales a batch's output allowance to one half of a split, by payload share.
+ *
+ * Halves inherit a proportionally smaller request: giving both halves the full
+ * parent budget would ask for more output than the model documents once the
+ * parent sat near its ceiling.
+ */
+function splitOutputBudget(
+  budget: number,
+  parent: readonly { readonly text: string }[],
+  half: readonly { readonly text: string }[],
+): number {
+  const totalChars = parent.reduce((sum, unit) => sum + unit.text.length, 0);
+  if (totalChars <= 0) return budget;
+  const halfChars = half.reduce((sum, unit) => sum + unit.text.length, 0);
+  return Math.max(MIN_OUTPUT_TOKENS, Math.ceil((budget * halfChars) / totalChars));
+}
 
 /**
  * Fail-fast codes: errors that describe the run's CONFIGURATION rather than
@@ -180,6 +220,13 @@ interface BatchRunOptions {
   readonly glossary?: readonly GlossaryRule[];
   /** Strategy-derived sampling temperature (lower = stricter preservation). */
   readonly temperature?: number;
+  /**
+   * Output-token allowance the batch was planned against (`max_tokens`).
+   * Omitting it lets the endpoint fall back to its own default, which is
+   * routinely far below the model's documented maximum - long answers then get
+   * cut off mid-JSON and the whole batch fails to parse.
+   */
+  readonly maxOutputTokens?: number;
 }
 
 /**
@@ -187,11 +234,13 @@ interface BatchRunOptions {
  *
  * `depth` is how many times it was already halved after a rejected attempt, so
  * a model that only copes with short payloads still converges instead of
- * splitting forever.
+ * splitting forever. `outputBudget` is the output allowance this batch may
+ * request (see `BatchRunOptions.maxOutputTokens`).
  */
 interface QueuedBatch {
   readonly units: readonly { readonly id: string; readonly text: string }[];
   readonly depth: number;
+  readonly outputBudget: number;
 }
 
 function defaultWait(ms: number, signal?: AbortSignal): Promise<void> {
@@ -454,7 +503,20 @@ class TranslationService {
     // Work queue: batches are pulled off it by a small worker pool, and a
     // rejected batch pushes its two halves back on instead of failing good
     // units. `batchTotal` therefore grows when a batch is split.
-    const queue: QueuedBatch[] = plan.batches.map((batch) => ({ units: batch.units, depth: 0 }));
+    //
+    // Each batch also carries the output allowance it was sized against. The
+    // planner checks that the expected answer fits the model's `maxOutputTokens`,
+    // but nothing else asks the endpoint for it - without `max_tokens` every
+    // endpoint falls back to its own default, which for many routes is a small
+    // fraction of the model maximum. A Burmese answer that is longer than that
+    // default is cut off mid-JSON, the contract check fails, and the batch (and
+    // everything it splits into) is rejected: translation ends with a handful of
+    // short batches done and the rest of the document failed.
+    const queue: QueuedBatch[] = plan.batches.map((batch) => ({
+      units: batch.units,
+      depth: 0,
+      outputBudget: outputBudgetFor(batch, policy),
+    }));
     let batchTotal = plan.batches.length;
     let batchDone = 0;
     /** Set once one failure invalidates every remaining batch (config error). */
@@ -490,6 +552,7 @@ class TranslationService {
         ...(input.signal ? { signal: input.signal } : {}),
         ...(glossary.length > 0 ? { glossary } : {}),
         temperature: STRATEGY_TEMPERATURE[strategy],
+        maxOutputTokens: batch.outputBudget,
       });
       if (outcome.kind === 'aborted') {
         aborted = true;
@@ -518,9 +581,19 @@ class TranslationService {
           batch.depth < MAX_BATCH_SPLIT_DEPTH
         ) {
           const mid = Math.ceil(batch.units.length / 2);
+          const first = batch.units.slice(0, mid);
+          const second = batch.units.slice(mid);
           queue.unshift(
-            { units: batch.units.slice(0, mid), depth: batch.depth + 1 },
-            { units: batch.units.slice(mid), depth: batch.depth + 1 },
+            {
+              units: first,
+              depth: batch.depth + 1,
+              outputBudget: splitOutputBudget(batch.outputBudget, batch.units, first),
+            },
+            {
+              units: second,
+              depth: batch.depth + 1,
+              outputBudget: splitOutputBudget(batch.outputBudget, batch.units, second),
+            },
           );
           batchTotal += 1;
           logger.warn('Retrying a rejected batch as two smaller batches', {
@@ -681,7 +754,7 @@ class TranslationService {
     document: DocumentRecord,
     options: BatchRunOptions = {},
   ): Promise<BatchOutcome> {
-    const { signal, glossary, temperature } = options;
+    const { signal, glossary, temperature, maxOutputTokens } = options;
     let lastError: AppError | undefined;
     let lastProviderIndex = startIndex;
     let quotaCount = 0;
@@ -709,6 +782,7 @@ class TranslationService {
             {
               ...(signal ? { signal } : {}),
               ...(temperature !== undefined ? { temperature } : {}),
+              ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
             },
           );
           return {

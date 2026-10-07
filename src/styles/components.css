@@ -1178,3 +1178,21 @@
   overflow-wrap: anywhere;
   color: var(--color-text-muted);
 }
+
+/* Why this unit failed: the message the engine persisted (the model's actual
+   reply when a JSON contract broke, or the endpoint's own error text). */
+.unit-failure {
+  margin: 0;
+  color: var(--color-danger);
+  overflow-wrap: anywhere;
+}
+
+.unit-failure__label::after {
+  content: ': ';
+}
+
+.unit-failure__detail {
+  margin: 0;
+  color: var(--color-danger);
+  overflow-wrap: anywhere;
+}
